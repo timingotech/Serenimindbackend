@@ -1,0 +1,3 @@
+# Custom Dictionary Words
+generate_verification_code
+rest_framework_simplejwt

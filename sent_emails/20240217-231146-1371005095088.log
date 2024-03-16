@@ -1,0 +1,25 @@
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+Subject: Password reset on 127.0.0.1:8000
+From: webmaster@localhost
+To: timingotech@gmail.com
+Date: Sat, 17 Feb 2024 22:11:47 -0000
+Message-ID: <170820790714.10660.8399621932067515632@DESKTOP-SL5R9SV>
+
+
+You're receiving this email because you requested a password reset for your user account at 127.0.0.1:8000.
+
+Please go to the following page and choose a new password:
+
+http://127.0.0.1:8000/api/reset/MTc2/c2kdrm-81d114a9985f17f2c95050b3a0f03f00/
+
+Your username, in case you’ve forgotten: timithemagician
+
+Thanks for using our site!
+
+The 127.0.0.1:8000 team
+
+
+
+-------------------------------------------------------------------------------
