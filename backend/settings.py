@@ -155,14 +155,25 @@ EMAIL_HOST_PASSWORD = 'pzkgiumwdbexrcgb'
 CORS_ORIGIN_ALLOW_ALL = True    
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000", 
+    "http://localhost:3000",
+    "http://serenimindbackend.onrender.com" 
 ]
 CORS_ORIGIN_WHITELIST = (
     'localhost:3000',
 )
+CORS_ALLOW_METHODS = [
+    'GET',
+    'POST',
+]
+
+CORS_ALLOW_HEADERS = [
+    'Content-Type',
+    'Authorization',
+    # Add other allowed headers as needed
+]
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:3000']
+CSRF_TRUSTED_ORIGINS = ['http://localhost:3000','http://serenimindbackend.onrender.com']
 CSRF_COOKIE_SECURE = True  # For secure connections (HTTPS)
 CSRF_COOKIE_HTTPONLY = True  # Restrict cookie access to JavaScript
 CSRF_COOKIE_SAMESITE = 'Lax'  # Adjust as needed (Lax, Strict, None)
