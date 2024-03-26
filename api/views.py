@@ -9,9 +9,20 @@ from rest_framework.response import Response
 from rest_framework import status
 from .serializers import UserProfile
 from django.views.decorators.csrf import csrf_exempt
+import requests
 from .models import UserProfile
+from rest_framework import viewsets, permissions
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from django.shortcuts import get_object_or_404
+from .models import Todo, MoodEntry
+from .serializers import TodoSerializer, MoodEntrySerializer
 import random
+from .models import Community
+from django.http import JsonResponse, HttpResponseBadRequest
 import string
+from .models import BlogPost  # Import your BlogPost model
+from .serializers import SenderIdSerializer
 from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -24,6 +35,9 @@ from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 import json
+from rest_framework import viewsets
+from .models import Community
+from .serializers import CommunitySerializer
 from django.middleware.csrf import get_token
 from django.http import JsonResponse
 from django.views.decorators.csrf import requires_csrf_token
@@ -32,12 +46,24 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 import json
+from rest_framework import generics
+from .models import CommunityPost
+from django.dispatch import receiver
+from django.urls import reverse
+from django_rest_passwordreset.signals import reset_password_token_created
+from django.core.mail import send_mail, EmailMessage
+from .serializers import CommunitySerializer
 from django.core.cache import cache
 from django.contrib.auth.models import User
 from django.http import JsonResponse
 import jwt
 import datetime
 import os
+from rest_framework.generics import RetrieveUpdateAPIView, DestroyAPIView
+from .models import Message
+from .serializers import MessageSerializer
+from .models import Message
+from .serializers import MessageSerializer, MyTokenObtainPairSerializer
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_str
@@ -61,11 +87,17 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
 from .models import UserProfile
+from rest_framework import status
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .models import UserSettings
+from .serializers import UserSettingsSerializer
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Post
 from .serializers import PostSerializer
+from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
@@ -75,10 +107,43 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .serializers import UserSerializer
 from django.contrib.auth.models import User
+from rest_framework.response import Response
+from .models import JournalEntry
+from .serializers import JournalEntrySerializer
+from django.contrib.auth.decorators import login_required
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated, AllowAny
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_info_dashboard(request):
+    if request.user.is_authenticated:
+        user_id = request.user.id
+        first_name = request.user.first_name
+        last_name = request.user.last_name
+        username = request.user.username
+
+        user_info = {
+            'user_id': user_id,
+            'first_name': first_name,
+            'last_name': last_name,
+            'username': username,
+        }
+        print(user_id)
+        return JsonResponse(user_info)
+    else:
+        return JsonResponse({'error': 'User is not authenticated'}, status=401)
+
+def get_user_username(request):
+    user = request.user
+    user_info = {
+        'username': user.username,
+    }
+    return JsonResponse(user_info)
 
 @api_view(['GET'])
 def get_user_data(request):
@@ -137,7 +202,7 @@ def login_view(request):
         return Response({'message': 'Login successful'}, status=status.HTTP_200_OK)
     else:
         # Invalid credentials
-        print("Login failed. Invalid credentials.")
+        print("Login failed. Invalid username or password.")
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
 
 @csrf_exempt
@@ -313,7 +378,7 @@ def submit_form(request):
         )
 
         # Send email to the user
-        user_message = f'Thank you for booking a mental health professional. We will contact you via email or phone soon.\n\nBooking Details:\nDate: {date}\nTime: {time}\nReason: {reason}\nLanguage: {language}'
+        user_message = f'Thank you for booking a mental health professional. We will contact you via email or phone soon.\n\nBooking Details:\nDate: {date}\nTime: {time}\nReason: {reason}\nLanguage: {language}. \n\n Best regards,\n SereniMind.'
         send_mail(
             'Booking Confirmation',
             user_message,
@@ -360,3 +425,334 @@ def post_create(request):
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@csrf_exempt
+def create_blog(request):
+    if request.method == 'POST':
+        title = request.POST.get('title')
+        content = request.POST.get('content')
+        image = request.FILES.get('image')
+        fullname = request.POST.get('fullname')
+        email = request.POST.get('email')
+
+        # Save the blog post to the database
+        blog_post = BlogPost.objects.create(
+            title=title,
+            content=content,
+            image=image,
+            fullname=fullname,
+            email=email
+        )
+
+        # Construct email message
+        email_subject = f'New Blog Post Created by {fullname}'
+        email_message = f'Hello {fullname},\n\nThank you for creating a new blog post titled "{title}". Your blog is under review and would be sent in less than an hour.\n\nBest regards,\nSereniMind'
+        timingotech_message = f' {fullname} Just sent a blog in using "{email}",\n\nThe content and image below, \n content:"{content}" \n image:"{image}" . \n\nBest regards,\nSereniMind'
+
+        # Send email notification
+        send_mail(
+            email_subject,
+            timingotech_message,
+            'your-email@gmail.com',  # Replace with your email
+            ['timingotech@gmail.com'],
+            fail_silently=False,
+        )
+
+        send_mail(
+            email_subject,
+            email_message,
+            'your-email@gmail.com',  # Replace with your email
+            [email],  # Send to the email provided by the user
+            fail_silently=False,
+        )
+
+        return JsonResponse({'message': 'Blog post submitted successfully.'})
+    else:
+        return JsonResponse({'error': 'Only POST requests are allowed for this endpoint.'}, status=405)
+    
+@api_view(['GET', 'POST'])
+def journal_entries(request):
+    if request.method == 'GET':
+        user = request.user
+        print(user)
+        if user.is_authenticated:
+            entries = JournalEntry.objects.filter(user=user)
+        else:
+            entries = JournalEntry.objects.none()
+        serializer = JournalEntrySerializer(entries, many=True)
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        user = request.user
+        print(user)
+        if user.is_authenticated:
+            serializer = JournalEntrySerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=user)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({'error': 'User authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+@api_view(['GET', 'PUT', 'DELETE'])
+def journal_entry_detail(request, pk):
+    try:
+        entry = JournalEntry.objects.get(pk=pk)
+    except JournalEntry.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = JournalEntrySerializer(entry)
+        return Response(serializer.data)
+    elif request.method == 'PUT':
+        serializer = JournalEntrySerializer(entry, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    elif request.method == 'DELETE':
+        entry.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+class MessageListCreateAPIView(generics.ListCreateAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+    # You may need to override `perform_create` to associate user and community with the message
+
+
+class MessageListCreate(generics.ListCreateAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+
+    def get_queryset(self):
+        community_id = self.kwargs['community_id']
+        return Message.objects.filter(community_id=community_id)
+
+class MessageRetrieveUpdateDestroy(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+
+
+
+class CommunityViewSet(viewsets.ModelViewSet):
+    queryset = Community.objects.all()
+    serializer_class = CommunitySerializer
+
+
+
+class MessageDetailView(RetrieveUpdateAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+
+class MessageEditView(RetrieveUpdateAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+
+class MessageDeleteView(DestroyAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+
+#Login User
+
+class MyTokenObtainPairView(TokenObtainPairView):
+    serializer_class = MyTokenObtainPairSerializer
+
+class HomeView(APIView):
+    permission_classes = (IsAuthenticated, )
+
+    def get(self, request):
+        content = {'message': 'Welcome to the JWT Authentication page using React Js and Django!'}
+        return Response(content)
+    
+
+class LogoutView(APIView):
+     permission_classes = (IsAuthenticated,)
+     def post(self, request):
+          
+          try:
+               refresh_token = request.data["refresh_token"]
+               token = RefreshToken(refresh_token)
+               token.blacklist()
+               return Response(status=status.HTTP_205_RESET_CONTENT)
+          except Exception as e:
+               return Response(status=status.HTTP_400_BAD_REQUEST)
+          
+
+
+class SenderIdAPIView(APIView):
+    def get(self, request, *args, **kwargs):
+        message_id = kwargs.get('message_id')
+        try:
+            message = Message.objects.get(pk=message_id)
+            serializer = SenderIdSerializer(message)
+            return Response(serializer.data)
+        except Message.DoesNotExist:
+            return Response({'error': 'Message not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+
+
+class UserSettingsView(APIView):
+    def get_user_settings(self, user):
+        user_settings, created = UserSettings.objects.get_or_create(user=user)
+        return user_settings
+
+    def get(self, request):
+        if not request.user.is_authenticated:
+            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        user_settings = self.get_user_settings(request.user)
+        serializer = UserSettingsSerializer(user_settings)
+        return Response(serializer.data)
+
+    def post(self, request):
+        if not request.user.is_authenticated:
+            return Response({"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED)
+        
+        user_settings = self.get_user_settings(request.user)
+        serializer = UserSettingsSerializer(user_settings, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+def open_library_proxy(request):
+    # Get the query parameters from the client request
+    q = request.GET.get('q', '')
+    limit = request.GET.get('limit', 20)
+
+    # Make a request to the Open Library API
+    api_url = f'https://openlibrary.org/search.json?q={q}&limit={limit}'
+    response = requests.get(api_url)
+
+    # Return the API response to the client as JSON
+    return JsonResponse(response.json())
+
+# ViewSet for Todo model
+class TodoViewSet(viewsets.ModelViewSet):
+    queryset = Todo.objects.all()
+    serializer_class = TodoSerializer
+    permission_classes = [permissions.IsAuthenticated]  # Ensure only authenticated users can access
+
+    # Override create method to automatically assign logged-in user to the todo
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+# ViewSet for MoodEntry model
+class MoodEntryViewSet(viewsets.ModelViewSet):
+    queryset = MoodEntry.objects.all()
+    serializer_class = MoodEntrySerializer
+    permission_classes = [permissions.IsAuthenticated]  # Ensure only authenticated users can access
+
+    # Override create method to automatically assign logged-in user to the mood entry
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    # Custom action to filter mood entries by date range
+    @action(detail=False, methods=['GET'])
+    def filter_by_date(self, request):
+        start_date = request.GET.get('start_date')
+        end_date = request.GET.get('end_date')
+
+        mood_entries = MoodEntry.objects.filter(user=self.request.user, date__range=[start_date, end_date])
+        serializer = self.get_serializer(mood_entries, many=True)
+        return Response(serializer.data)
+    
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def todos(request):
+    if request.method == 'GET':
+        user = request.user
+        todos = Todo.objects.filter(user=user)
+        serializer = TodoSerializer(todos, many=True)
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        user = request.user
+        serializer = TodoSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def todos_list_create(request):
+    if request.method == 'GET':
+        user = request.user
+        todos = Todo.objects.filter(user=user)
+        serializer = TodoSerializer(todos, many=True)
+        return Response(serializer.data)
+    
+    elif request.method == 'POST':
+        user = request.user
+        serializer = TodoSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+@permission_classes([IsAuthenticated])
+@api_view(['GET', 'PUT', 'DELETE'])
+def todo_detail_update_delete(request, pk):
+    try:
+        todo = Todo.objects.get(pk=pk)
+    except Todo.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = TodoSerializer(todo)
+        return Response(serializer.data)
+
+    elif request.method == 'PUT':
+        serializer = TodoSerializer(todo, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    elif request.method == 'DELETE':
+        todo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def complete_todo(request, todo_id):
+    todo = get_object_or_404(Todo, pk=todo_id)
+    todo.completed = True
+    todo.save()
+    serializer = TodoSerializer(todo)
+    return Response(serializer.data)
+
+
+class MoodEntryListCreateAPIView(generics.ListCreateAPIView):
+    queryset = MoodEntry.objects.all()
+    serializer_class = MoodEntrySerializer
+
+class MoodEntryRetrieveUpdateDestroyAPIView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = MoodEntry.objects.all()
+    serializer_class = MoodEntrySerializer
+
+
+
+@receiver(reset_password_token_created)
+def password_reset_token_created(sender, instance, reset_password_token, *args, **kwargs):
+    # Get the user's username
+    username = reset_password_token.user.username
+    
+    # Construct the email message with the username and ending with SereniMind Team
+    email_plaintext_message = f"Hello {username},\n\nOpen the link to reset your password: {instance.request.build_absolute_uri('http://localhost:3000/resetpasswordform/')}{reset_password_token.key}\n\nSereniMind Team"
+
+    """
+    Django's default send_mail function:
+    Parameters: (title(email title), message(email body), from(email sender), to(recipient(s)))
+    """
+    send_mail(
+        # title:
+        f"Password Reset for {username}",
+        # message:
+        email_plaintext_message,
+        # from:
+        "info@yourcompany.com",
+        # to:
+        [reset_password_token.user.email],
+        fail_silently=False,
+    )

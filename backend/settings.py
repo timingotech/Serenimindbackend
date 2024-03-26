@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django_rest_passwordreset',
+    'rest_framework.authtoken',
+    'rest_framework_simplejwt.token_blacklist'
+
 ]
 
 MIDDLEWARE = [
@@ -58,16 +61,10 @@ MIDDLEWARE = [
 ]
 
 REST_FRAMEWORK = {
-    'DEFAULT_PERMISSION_CLASSES': (
-        # 'rest_framework.permissions.IsAuthenticated',
-    ),
-    'DEFAULT_AUTHENTICATION_CLASSES': (
+     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-        'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
-    ),
+      ],
 }
-
 
 ROOT_URLCONF = 'backend.urls'
 
@@ -88,7 +85,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'backend.wsgi.application'
-
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
@@ -125,7 +121,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Africa/Lagos'
 
 USE_I18N = True
 
@@ -144,13 +140,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587  # or 465 for SSL
-EMAIL_USE_TLS = True  # or False for SSL
-EMAIL_USE_SSL = False  # or True for SSL
-EMAIL_HOST_USER = 'taonuga@gmail.com'  
-EMAIL_HOST_PASSWORD = 'huihhwajlronlohs'    
+EMAIL_PORT = 465  # or 465 for SSL
+EMAIL_USE_TLS = False  # or False for SSL
+EMAIL_USE_SSL = True  # or True for SSL
+EMAIL_HOST_USER = 'timingotech@gmail.com'  
+EMAIL_HOST_PASSWORD = 'pzkgiumwdbexrcgb'    
 
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = True    
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000", 
@@ -167,6 +163,8 @@ CSRF_COOKIE_SAMESITE = 'Lax'  # Adjust as needed (Lax, Strict, None)
 CSRF_COOKIE_NAME = 'X_CSRFTOKEN'
 CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 
+
+
 CSRF_COOKIE_NAME = getattr(global_settings, 'CSRF_COOKIE_NAME', 'X_CSRFTOKEN')
 
 CACHES = {
@@ -177,7 +175,8 @@ CACHES = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
+     'ROTATE_REFRESH_TOKENS': True,
+     'BLACKLIST_AFTER_ROTATION': True
 }
-
