@@ -16,7 +16,7 @@ djangorestframework-simplejwt = "*"
 pyjwt = "*"
 djangorestframework-jwt = "*"
 django-rest-passwordreset = "*"
-django-rest-framework-jwt = "*"
+gunicorn = "*"
 
 [dev-packages]
 

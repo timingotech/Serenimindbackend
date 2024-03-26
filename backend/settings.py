@@ -12,7 +12,9 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
+import os
 from django.conf import global_settings
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,7 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-bot(2wug8-7lj_o5oo0!e#!i@xtzx8ypj=t(5uj^d=br4uxt^b'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = os.environ.get("DEBUG", "False").lower() == "true"
 
 ALLOWED_HOSTS = ['.vercel.app','now.sh','127.0.0.1','localhost']
 
@@ -95,6 +97,10 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+DATABASES ["default"] = dj_database_url.parse("postgres://testdb_zsxo_user:4Uk7Nc5I6NcFmYFlLlYcm1RKACx5tYy9@dpg-co1j8pn79t8c73celqfg-a.oregon-postgres.render.com/testdb_zsxo")
+
+
 
 
 # Password validation
@@ -180,3 +186,6 @@ SIMPLE_JWT = {
      'ROTATE_REFRESH_TOKENS': True,
      'BLACKLIST_AFTER_ROTATION': True
 }
+
+STATIC_URL ='static/'
+MEDIA_URL = 'media/'
