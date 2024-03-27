@@ -160,6 +160,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ORIGIN_WHITELIST = (
     'localhost:3000',
+    'http://serenimindbackend.onrender.com',
 )
 CORS_ALLOW_METHODS = [
     'GET',
@@ -173,7 +174,10 @@ CORS_ALLOW_HEADERS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = ['http://localhost:3000','http://serenimindbackend.onrender.com']
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:3000',
+    'http://serenimindbackend.onrender.com'
+    ]
 CSRF_COOKIE_SECURE = True  # For secure connections (HTTPS)
 CSRF_COOKIE_HTTPONLY = True  # Restrict cookie access to JavaScript
 CSRF_COOKIE_SAMESITE = 'Lax'  # Adjust as needed (Lax, Strict, None)
@@ -197,6 +201,3 @@ SIMPLE_JWT = {
      'ROTATE_REFRESH_TOKENS': True,
      'BLACKLIST_AFTER_ROTATION': True
 }
-
-STATIC_URL ='static/'
-MEDIA_URL = 'media/'
