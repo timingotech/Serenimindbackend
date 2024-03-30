@@ -743,7 +743,7 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
     username = reset_password_token.user.username
     
     # Construct the email message with the username and ending with SereniMind Team
-    email_plaintext_message = f"Hello {username},\n\nOpen the link to reset your password: {instance.request.build_absolute_uri('http://localhost:3000/resetpasswordform/')}{reset_password_token.key}\n\nSereniMind Team"
+    email_plaintext_message = f"Hello {username},\n\nOpen the link to reset your password: {instance.request.build_absolute_uri('http://serenimind.onrender.com/resetpasswordform/')}{reset_password_token.key}\n\nSereniMind Team"
 
     """
     Django's default send_mail function:
