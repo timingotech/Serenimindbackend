@@ -17,6 +17,7 @@ pyjwt = "*"
 djangorestframework-jwt = "*"
 django-rest-passwordreset = "*"
 gunicorn = "*"
+dj-database-url = "*"
 
 [dev-packages]
 

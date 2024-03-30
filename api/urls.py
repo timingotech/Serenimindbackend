@@ -3,7 +3,7 @@ from django.contrib.auth import views as auth_views
 from .views import signup, login ,csrf_token, submit_form,logout_view, get_user_data, send_verification_email, verification,  password_reset,MessageListCreateAPIView,  MessageListCreate, MessageRetrieveUpdateDestroy, MessageDetailView, MessageEditView, MessageDeleteView,get_user_info_dashboard
 from . import views 
 from rest_framework import routers
-from .views import CommunityViewSet, MyTokenObtainPairView, get_user_data, SenderIdAPIView, get_user_username, UserSettingsView, MoodEntryListCreateAPIView, MoodEntryRetrieveUpdateDestroyAPIView
+from .views import CommunityViewSet, MyTokenObtainPairView, get_user_data, SenderIdAPIView, get_user_username, UserSettingsView, MoodEntryListCreateAPIView, MoodEntryRetrieveUpdateDestroyAPIView, CommunityViewSet
 from rest_framework_simplejwt.views import (
     
     TokenRefreshView,
@@ -55,11 +55,13 @@ urlpatterns = [
     path('todos/<int:todo_id>/complete/', views.complete_todo, name='complete_todo'),
     path('mood-entries/', MoodEntryListCreateAPIView.as_view(), name='mood-entry-list-create'),
     path('mood-entries/<int:pk>/', MoodEntryRetrieveUpdateDestroyAPIView.as_view(), name='mood-entry-detail'),
+    
 ]
 
 
 # REST_FRAMEWORK = {
 #     'DEFAULT_AUTHENTICATION_CLASSES': (
-#         'rest_framework_simplejwt.authentication.JWTAuthentication',
+#         'rest_framework_simplejwt.authentication.JWTAuthenticastion',
 #     )
 # }
+ 
