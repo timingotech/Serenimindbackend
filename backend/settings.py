@@ -156,12 +156,9 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://serenimindbackend.onrender.com" 
+    "http://serenimindbackend.onrender.com",
+    "https://web-production-ce76a.up.railway.app",
 ]
-CORS_ORIGIN_WHITELIST = (
-    'localhost:3000',
-    'http://serenimindbackend.onrender.com',
-)
 CORS_ALLOW_METHODS = [
     'GET',
     'POST',
@@ -176,17 +173,16 @@ CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
-    'http://serenimindbackend.onrender.com'
-    ]
+    'http://serenimindbackend.onrender.com',
+    'https://web-production-ce76a.up.railway.app',  # Add a comma here
+]
+
 CSRF_COOKIE_SECURE = True  # For secure connections (HTTPS)
 CSRF_COOKIE_HTTPONLY = True  # Restrict cookie access to JavaScript
 CSRF_COOKIE_SAMESITE = 'Lax'  # Adjust as needed (Lax, Strict, None)
-CSRF_COOKIE_NAME = 'X_CSRFTOKEN'
-CSRF_HEADER_NAME = 'HTTP_X_CSRFTOKEN'
 
+CSRF_FAILURE_VIEW = 'api.views.custom_csrf_failure_view'
 
-
-CSRF_COOKIE_NAME = getattr(global_settings, 'CSRF_COOKIE_NAME', 'X_CSRFTOKEN')
 
 CACHES = {
     'default': {    

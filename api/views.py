@@ -3,9 +3,13 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.core.mail import send_mail
 from django.http import HttpResponse
+from django.http import HttpResponseForbidden
 from django.shortcuts import redirect
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from django.contrib.auth.models import User
+from django.contrib import messages
+from django.shortcuts import redirect
 from rest_framework import status
 from .serializers import UserProfile
 from django.views.decorators.csrf import csrf_exempt
@@ -176,7 +180,7 @@ def signup(request):
     # Create the User
     user = User.objects.create(username=username, email=email, first_name=first_name, last_name=last_name)
     user.set_password(password)
-    user.save()
+    user.is_verified = False
 
     return Response({'message': 'User signed up successfully.'}, status=status.HTTP_201_CREATED)
 
@@ -756,3 +760,18 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
         [reset_password_token.user.email],
         fail_silently=False,
     )
+
+
+class DeleteUserAccountView(APIView):
+    def delete(self, request, user_id):
+        try:
+            user = User.objects.get(id=user_id)
+            user.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except User.DoesNotExist:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        
+
+
+def custom_csrf_failure_view(request, reason=""):
+    return HttpResponseForbidden("CSRF verification failed. Please try again.")
