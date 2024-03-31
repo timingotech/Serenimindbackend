@@ -180,7 +180,6 @@ def signup(request):
     # Create the User
     user = User.objects.create(username=username, email=email, first_name=first_name, last_name=last_name)
     user.set_password(password)
-    user.is_verified = False
 
     return Response({'message': 'User signed up successfully.'}, status=status.HTTP_201_CREATED)
 
@@ -743,7 +742,7 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
     username = reset_password_token.user.username
     
     # Construct the email message with the username and ending with SereniMind Team
-    email_plaintext_message = f"Hello {username},\n\nOpen the link to reset your password: {instance.request.build_absolute_uri('http://serenimind.onrender.com/resetpasswordform/')}{reset_password_token.key}\n\nSereniMind Team"
+    email_plaintext_message = f"Hello {username},\n\nOpen the link to reset your password: {instance.request.build_absolute_uri('https://serenimind.onrender.com/resetpasswordform/')}{reset_password_token.key}\n\nSereniMind Team"
 
     """
     Django's default send_mail function:
