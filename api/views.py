@@ -180,6 +180,7 @@ def signup(request):
     # Create the User
     user = User.objects.create(username=username, email=email, first_name=first_name, last_name=last_name)
     user.set_password(password)
+    user.is_verified = True
 
     return Response({'message': 'User signed up successfully.'}, status=status.HTTP_201_CREATED)
 
