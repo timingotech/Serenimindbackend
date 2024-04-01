@@ -164,11 +164,9 @@ CORS_ALLOW_METHODS = [
     'POST',
 ]
 
-CORS_ALLOW_HEADERS = [
-    'Content-Type',
-    'Authorization',
-    # Add other allowed headers as needed
-]
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_HEADERS = True
+
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [

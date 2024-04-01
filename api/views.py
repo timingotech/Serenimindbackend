@@ -180,7 +180,7 @@ def signup(request):
     # Create the User
     user = User.objects.create(username=username, email=email, first_name=first_name, last_name=last_name)
     user.set_password(password)
-    user.is_verified = True
+    user.save()
 
     return Response({'message': 'User signed up successfully.'}, status=status.HTTP_201_CREATED)
 
@@ -335,16 +335,31 @@ def send_verification_email(request):
     try:
         data = json.loads(request.body)
         email = data.get('email')
+        first_name = data.get('firstName')  # Assuming the first name is provided in the request
         verification_code = data.get('verificationCode')
+
+        subject = f'Welcome to SereniMind, {first_name}! Your Verification Code'
+
+
+        # Send verification email using Django's send_mail
+        message = (
+            f'Dear {first_name},\n\n'
+            f'Welcome to SereniMind! Thank you for signing up.\n\n'
+            f'Your verification code is: {verification_code}\n\n'
+            f'Please use this code to complete the verification process.\n\n'
+            f'Best regards,\n'
+            f'The SereniMind Team'
+        )
 
         # Send verification email using Django's send_mail
         send_mail(
-            'Verification Code',
-            f'Your verification code is: {verification_code}',
-            'from@example.com',  # Replace with your from email
+            subject,
+            message,
+            'your-email@gmail.com',  # Replace with your from email and name
             [email],
             fail_silently=False,
         )
+
         return JsonResponse({'message': 'Verification email sent successfully'}, status=200)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

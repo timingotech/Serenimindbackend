@@ -32,7 +32,6 @@ urlpatterns = [
     path('posts/create/', views.post_create, name='post_create'),
     path('logout/', views.LogoutView.as_view(), name ='logout'),
     path('user/', get_user_data, name='user_data'),
-    path('send-verification-email/', send_verification_email, name='send_verification_email'),
     path('create-blog/', views.create_blog, name='create_blog'),
     path('journal-entries/', views.journal_entries),
     path('journal-entries/<int:pk>/', views.journal_entry_detail),
