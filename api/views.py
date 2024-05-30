@@ -385,9 +385,10 @@ def submit_form(request):
         phone_number = data.get('phoneNumber')
         email = data.get('email')
         language = data.get('language')
+        plan = data.get('plan')
 
         # Send email to timingotech@gmail.com
-        timingotech_message = f'New booking details:\nDate: {date}\nTime: {time}\nReason: {reason}\nPhone Number: {phone_number}\nEmail: {email}\nLanguage: {language}'
+        timingotech_message = f'New booking details:\nDate: {date}\nTime: {time}\nReason: {reason}\nPhone Number: {phone_number}\nEmail: {email}\nLanguage: {language}\nPlan: {plan}'
         send_mail(
             'New Booking',
             timingotech_message,
@@ -397,7 +398,7 @@ def submit_form(request):
         )
 
         # Send email to the user
-        user_message = f'Thank you for booking a mental health professional. We will contact you via email or phone soon.\n\nBooking Details:\nDate: {date}\nTime: {time}\nReason: {reason}\nLanguage: {language}. \n\n Best regards,\n SereniMind.'
+        user_message = f'Thank you for booking a mental health professional. We will contact you via email or phone soon.\n\nBooking Details:\nDate: {date}\nTime: {time}\nReason: {reason}\nLanguage: {language}\nPlan: {plan}. \n\n Best regards,\n SereniMind.'
         send_mail(
             'Booking Confirmation',
             user_message,
