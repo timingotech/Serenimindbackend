@@ -387,13 +387,13 @@ def submit_form(request):
         language = data.get('language')
         plan = data.get('plan')
 
-        # Send email to timingotech@gmail.com
+        # Send email to serenimindng@gmail.com
         timingotech_message = f'New booking details:\nDate: {date}\nTime: {time}\nReason: {reason}\nPhone Number: {phone_number}\nEmail: {email}\nLanguage: {language}\nPlan: {plan}'
         send_mail(
             'New Booking',
             timingotech_message,
             'your-email@gmail.com',  # Replace with your email
-            ['timingotech@gmail.com'],
+            ['serenimindng@gmail.com'],
             fail_silently=False,
         )
 
@@ -475,7 +475,7 @@ def create_blog(request):
             email_subject,
             timingotech_message,
             'your-email@gmail.com',  # Replace with your email
-            ['timingotech@gmail.com'],
+            ['serenimindng@gmail.com'],
             fail_silently=False,
         )
 
@@ -801,3 +801,56 @@ def delete_account(request):
 
 def custom_csrf_failure_view(request, reason=""):
     return HttpResponseForbidden("CSRF verification failed. Please try again.")
+
+@csrf_exempt
+def send_email(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        name = data.get('user_name')
+        email = data.get('user_email')
+        message = data.get('message')
+        
+        # Create a comprehensive message
+        comprehensive_message = f"Message from {name} ({email}):\n\n{message}"
+        
+        # Send email to the receiver
+        send_mail(
+            f'New message from {name}',
+            comprehensive_message,
+            email,
+            ['serenimindng@gmail.com'],  # replace with your email
+            fail_silently=False,
+        )
+        return JsonResponse({'message': 'Email sent successfully'})
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@csrf_exempt
+def subscribe_newsletter(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        email = data.get('user_email')
+        
+        # Send email to the receiver
+        send_mail(
+            'New Newsletter Subscription',
+            f'You have a new subscriber: {email}',
+            'no-reply@example.com',  # replace with your email
+            ['serenimindng@gmail.com'],  # replace with your email
+            fail_silently=False,
+        )
+        
+        # Create a comprehensive subscription confirmation message
+        comprehensive_subscription_message = f"""Dear Subscriber,\n\nThank you for subscribing to the SereniMind newsletter! We are thrilled to have you as part of our community. By subscribing, you are joining a dedicated group of individuals who are committed to enhancing their mental well-being and staying informed about the latest developments in mental health support.\n\nOur newsletter is crafted to bring you valuable insights, tips, and updates. You can look forward to receiving:\n\n- Exclusive articles and resources on mental health and wellness\n- Updates on new features and services offered by SereniMind\n- Inspirational stories and testimonials from our community\n- Information on upcoming events and webinars\n- Special promotions and offers\n\nAt SereniMind, we believe in the power of community and the importance of staying connected. Your journey towards better mental health is important to us, and we are here to support you every step of the way.\n\nIf you have any questions, feedback, or topics you would like us to cover, please do not hesitate to reach out. We are always here to help and listen.\n\nThank you once again for subscribing to our newsletter. We look forward to sharing valuable content with you and supporting you on your journey towards mental well-being.\n\nWarm regards,\nThe SereniMind Team
+        """
+
+        # Send email to the new subscriber
+        send_mail(
+            'Newsletter Subscription Confirmation',
+            comprehensive_subscription_message,
+            'serenimindng@gmail.com',  # replace with your email
+            [email],
+            fail_silently=False,
+        )
+        
+        return JsonResponse({'message': 'Successfully subscribed to the newsletter'})
+    return JsonResponse({'error': 'Invalid request'}, status=400)

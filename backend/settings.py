@@ -149,8 +149,8 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 465  # or 465 for SSL
 EMAIL_USE_TLS = False  # or False for SSL
 EMAIL_USE_SSL = True  # or True for SSL
-EMAIL_HOST_USER = 'timingotech@gmail.com'  
-EMAIL_HOST_PASSWORD = 'pzkgiumwdbexrcgb'    
+EMAIL_HOST_USER = 'serenimindng@gmail.com'  
+EMAIL_HOST_PASSWORD = 'soysfmupjycliedp'    
 
 CORS_ORIGIN_ALLOW_ALL = True    
 
