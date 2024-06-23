@@ -162,6 +162,10 @@ CORS_ALLOWED_ORIGINS = [
 CORS_ALLOW_METHODS = [
     'GET',
     'POST',
+    'PUT',
+    'PATCH',
+    'DELETE',
+    'OPTIONS'
 ]
 
 CORS_ALLOW_ALL_ORIGINS = True
