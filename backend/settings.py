@@ -157,7 +157,8 @@ CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://serenimindbackend.onrender.com",
-    "https://web-production-ce76a.up.railway.app",
+    "https://serenimindbackend-yeh9.vercel.app",
+    "https://serenimindbackend.onrender.com",
 ]
 CORS_ALLOW_METHODS = [
     'GET',
@@ -176,7 +177,8 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
     'http://serenimindbackend.onrender.com',
-    'https://web-production-ce76a.up.railway.app',  # Add a comma here
+    "https://serenimindbackend-yeh9.vercel.app",
+    "https://serenimindbackend.onrender.com",  # Add a comma here
 ]
 
 CSRF_COOKIE_SECURE = True  # For secure connections (HTTPS)
