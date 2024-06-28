@@ -252,15 +252,22 @@ verification_codes = {}
 @api_view(['POST'])
 def verification(request):
     email = request.data.get('email')
-    verification_code = request.data.get('verificationCode')
+    verification_code = request.data.get('code')
+    
+    # Print statements for debugging
+    print(f"Received verification code: {verification_code}")
+    print(f'Stored verification code {verification_code} for email {email}')
+
+    # Set the verification code in the cache
+    cache.set(email, verification_code)
+    print(f'Stored verification code {verification_code} for email {email}')
 
     # Retrieve the stored verification code
     stored_code = cache.get(email)
-    print(f"Received verification code: {verification_code}")
     print(f"Expected verification code: {stored_code}")
 
     # Check if the verification code is valid
-    if stored_code and stored_code == verification_code:
+    if verify_verification_code(email, verification_code):
         user = User.objects.get(email=email)
         user.is_verified = True
         user.save()
@@ -268,7 +275,6 @@ def verification(request):
     else:
         print("Verification failed!")
         return Response({'error': 'Invalid verification code'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 # Helper function to verify the verification code
@@ -291,7 +297,7 @@ def password_reset(request):
             send_mail(
                 'Password Reset Request',
                 'Please follow the link to reset your password.',
-                'team@serenimind.com.ng',
+                'from@example.com',
                 [email],
                 fail_silently=False,
             )
@@ -307,31 +313,16 @@ def send_verification_email(request):
     try:
         data = json.loads(request.body)
         email = data.get('email')
-        first_name = data.get('firstName')  # Assuming the first name is provided in the request
         verification_code = data.get('verificationCode')
-
-        subject = f'Welcome to SereniMind, {first_name}! Your Verification Code'
-
-
-        # Send verification email using Django's send_mail
-        message = (
-            f'Dear {first_name},\n\n'
-            f'Welcome to SereniMind! Thank you for signing up.\n\n'
-            f'Your verification code is: {verification_code}\n\n'
-            f'Please use this code to complete the verification process.\n\n'
-            f'Best regards,\n'
-            f'The SereniMind Team'
-        )
 
         # Send verification email using Django's send_mail
         send_mail(
-            subject,
-            message,
-            'team@serenimind.com.ng',  # Replace with your from email and name
+            'Verification Code',
+            f'Your verification code is: {verification_code}',
+            'from@example.com',  # Replace with your from email
             [email],
             fail_silently=False,
         )
-
         return JsonResponse({'message': 'Verification email sent successfully'}, status=200)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
