@@ -30,7 +30,7 @@ urlpatterns = [
     path('profiles/<str:sername>/update/', views.update_user_profile),
     path('posts/', views.post_list, name='post_list'),
     path('posts/create/', views.post_create, name='post_create'),
-    path('logout/', views.LogoutView.as_view(), name ='logout'),
+    path('logout/', views.LogoutView.as_view(), name ='logout'), 
     path('user/', get_user_data, name='user_data'),
     path('create-blog/', views.create_blog, name='create_blog'),
     path('journal-entries/', views.journal_entries),

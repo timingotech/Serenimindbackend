@@ -247,49 +247,20 @@ def forgot_password(request):
 # Assuming this is part of your views.py
 verification_codes = {}
 
-def generate_verification_code(email):
-    # Generate a random 6-digit code
-    code = ''.join(random.choices(string.digits, k=6))
-
-    # Store the verification code in the cache for later verification
-    cache.set(email, code)
-
-    # Print the verification code in the console for debugging
-    print(f'Generated verification code for {email}: {code}')
-
-    # Send verification code via email
-    send_mail(
-        'Verification Code',
-        f'Your verification code is: {code}',
-        'team@serenimind.com.ng',
-        [email],
-        fail_silently=False,
-    )
-
-    return code
-
-
 
 @csrf_exempt
 @api_view(['POST'])
 def verification(request):
     email = request.data.get('email')
-    verification_code = request.data.get('code')
-    
-    # Print statements for debugging
-    print(f"Received verification code: {verification_code}")
-    print(f'Stored verification code {verification_code} for email {email}')
-
-    # Set the verification code in the cache
-    cache.set(email, verification_code)
-    print(f'Stored verification code {verification_code} for email {email}')
+    verification_code = request.data.get('verificationCode')
 
     # Retrieve the stored verification code
     stored_code = cache.get(email)
+    print(f"Received verification code: {verification_code}")
     print(f"Expected verification code: {stored_code}")
 
     # Check if the verification code is valid
-    if verify_verification_code(email, verification_code):
+    if stored_code and stored_code == verification_code:
         user = User.objects.get(email=email)
         user.is_verified = True
         user.save()
@@ -297,6 +268,7 @@ def verification(request):
     else:
         print("Verification failed!")
         return Response({'error': 'Invalid verification code'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 
 # Helper function to verify the verification code
