@@ -229,7 +229,7 @@ def forgot_password(request):
             send_mail(
             'Verification Code',
             f'Your verification code is: {verification_code}',
-            'from@example.com',  # Replace with your from email
+            'team@serenimind.com.ng',  # Replace with your from email
             [email],
             fail_silently=False,
         )
@@ -261,7 +261,7 @@ def generate_verification_code(email):
     send_mail(
         'Verification Code',
         f'Your verification code is: {code}',
-        'from@example.com',
+        'team@serenimind.com.ng',
         [email],
         fail_silently=False,
     )
@@ -319,7 +319,7 @@ def password_reset(request):
             send_mail(
                 'Password Reset Request',
                 'Please follow the link to reset your password.',
-                'from@example.com',
+                'team@serenimind.com.ng',
                 [email],
                 fail_silently=False,
             )
@@ -771,7 +771,7 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
         # message:
         email_plaintext_message,
         # from:
-        "info@yourcompany.com",
+        "team@serenimind.com.ng",
         # to:
         [reset_password_token.user.email],
         fail_silently=False,
