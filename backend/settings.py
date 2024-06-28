@@ -145,12 +145,14 @@ STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 465  # or 465 for SSL
-EMAIL_USE_TLS = False  # or False for SSL
-EMAIL_USE_SSL = True  # or True for SSL
-EMAIL_HOST_USER = 'serenimindng@gmail.com'  
-EMAIL_HOST_PASSWORD = 'soysfmupjycliedp'    
+EMAIL_HOST = 'us2.smtp.mailhostbox.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+EMAIL_HOST_USER = 'team@serenimind.com.ng'
+EMAIL_HOST_PASSWORD = 'jX$N%Ghqk0'   
+
+DEFAULT_FROM_EMAIL = 'team@serenimind.com.ng'
 
 CORS_ORIGIN_ALLOW_ALL = True    
 

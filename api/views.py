@@ -387,13 +387,13 @@ def submit_form(request):
         language = data.get('language')
         plan = data.get('plan')
 
-        # Send email to serenimindng@gmail.com
+        # Send email to team@serenimind.com.ng
         timingotech_message = f'New booking details:\nDate: {date}\nTime: {time}\nReason: {reason}\nPhone Number: {phone_number}\nEmail: {email}\nLanguage: {language}\nPlan: {plan}'
         send_mail(
             'New Booking',
             timingotech_message,
             'your-email@gmail.com',  # Replace with your email
-            ['serenimindng@gmail.com'],
+            ['team@serenimind.com.ng'],
             fail_silently=False,
         )
 
@@ -475,7 +475,7 @@ def create_blog(request):
             email_subject,
             timingotech_message,
             'your-email@gmail.com',  # Replace with your email
-            ['serenimindng@gmail.com'],
+            ['team@serenimind.com.ng'],
             fail_silently=False,
         )
 
@@ -818,7 +818,7 @@ def send_email(request):
             f'New message from {name}',
             comprehensive_message,
             email,
-            ['serenimindng@gmail.com'],  # replace with your email
+            ['team@serenimind.com.ng'],  # replace with your email
             fail_silently=False,
         )
         return JsonResponse({'message': 'Email sent successfully'})
@@ -834,8 +834,8 @@ def subscribe_newsletter(request):
         send_mail(
             'New Newsletter Subscription',
             f'You have a new subscriber: {email}',
-            'no-reply@example.com',  # replace with your email
-            ['serenimindng@gmail.com'],  # replace with your email
+            'team@serenimind.com.ng',  # replace with your email
+            ['team@serenimind.com.ng'],  # replace with your email
             fail_silently=False,
         )
         
@@ -847,7 +847,7 @@ def subscribe_newsletter(request):
         send_mail(
             'Newsletter Subscription Confirmation',
             comprehensive_subscription_message,
-            'serenimindng@gmail.com',  # replace with your email
+            'team@serenimind.com.ng',  # replace with your email
             [email],
             fail_silently=False,
         )
