@@ -355,7 +355,7 @@ def send_verification_email(request):
         send_mail(
             subject,
             message,
-            'your-email@gmail.com',  # Replace with your from email and name
+            'team@serenimind.com.ng',  # Replace with your from email and name
             [email],
             fail_silently=False,
         )
@@ -392,7 +392,7 @@ def submit_form(request):
         send_mail(
             'New Booking',
             timingotech_message,
-            'your-email@gmail.com',  # Replace with your email
+            'team@serenimind.com.ng',  # Replace with your email
             ['team@serenimind.com.ng'],
             fail_silently=False,
         )
@@ -402,7 +402,7 @@ def submit_form(request):
         send_mail(
             'Booking Confirmation',
             user_message,
-            'your-email@gmail.com',  # Replace with your email
+            'team@serenimind.com.ng',  # Replace with your email
             [email],
             fail_silently=False,
         )
@@ -474,7 +474,7 @@ def create_blog(request):
         send_mail(
             email_subject,
             timingotech_message,
-            'your-email@gmail.com',  # Replace with your email
+            'team@serenimind.com.ng',  # Replace with your email
             ['team@serenimind.com.ng'],
             fail_silently=False,
         )
@@ -482,7 +482,7 @@ def create_blog(request):
         send_mail(
             email_subject,
             email_message,
-            'your-email@gmail.com',  # Replace with your email
+            'team@serenimind.com.ng',  # Replace with your email
             [email],  # Send to the email provided by the user
             fail_silently=False,
         )
