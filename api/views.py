@@ -245,7 +245,30 @@ def forgot_password(request):
     return JsonResponse({'csrfToken': csrf_token})
 
 # Assuming this is part of your views.py
+# Assuming this is part of your views.py
 verification_codes = {}
+
+def generate_verification_code(email):
+    # Generate a random 6-digit code
+    code = ''.join(random.choices(string.digits, k=6))
+
+    # Store the verification code in the cache for later verification
+    cache.set(email, code)
+
+    # Print the verification code in the console for debugging
+    print(f'Generated verification code for {email}: {code}')
+
+    # Send verification code via email
+    send_mail(
+        'Verification Code',
+        f'Your verification code is: {code}',
+        'from@example.com',
+        [email],
+        fail_silently=False,
+    )
+
+    return code
+
 
 
 @csrf_exempt
@@ -306,7 +329,6 @@ def password_reset(request):
             return JsonResponse({'message': 'User with this email does not exist.'}, status=400)
     else:
         return JsonResponse({'message': 'Method not allowed'}, status=405)
-
 @csrf_exempt
 @require_POST
 def send_verification_email(request):
