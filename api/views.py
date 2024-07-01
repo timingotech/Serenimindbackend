@@ -319,7 +319,7 @@ def send_verification_email(request):
         send_mail(
             'Verification Code',
             f'Your verification code is: {verification_code}',
-            'from@example.com',  # Replace with your from email
+            'team@serenimind.com.ng',  # Replace with your from email
             [email],
             fail_silently=False,
         )
