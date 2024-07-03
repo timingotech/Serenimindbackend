@@ -762,7 +762,7 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
         fail_silently=False,
     )
 
-@csrf_exempt
+
 class DeleteUserAccountView(APIView):
     def delete(self, request, user_id):
         try:
