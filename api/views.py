@@ -773,14 +773,14 @@ class DeleteUserAccountView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         
 @csrf_exempt
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
 def delete_account(request):
     if request.method == 'DELETE':
         user = request.user
-        # Delete user account and related data
         user.delete()
-        return JsonResponse({'message': 'Account deleted successfully'}, status=200)
-    else:
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
+        return Response({'message': 'Account deleted successfully'}, status=status.HTTP_200_OK)
+    return Response({'error': 'Method not allowed'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 
 def custom_csrf_failure_view(request, reason=""):
