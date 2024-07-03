@@ -762,7 +762,7 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
         fail_silently=False,
     )
 
-
+@csrf_exempt
 class DeleteUserAccountView(APIView):
     def delete(self, request, user_id):
         try:
@@ -772,7 +772,7 @@ class DeleteUserAccountView(APIView):
         except User.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
         
-
+@csrf_exempt
 @login_required
 def delete_account(request):
     if request.method == 'DELETE':
