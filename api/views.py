@@ -773,7 +773,6 @@ class DeleteUserAccountView(APIView):
             return Response(status=status.HTTP_404_NOT_FOUND)
         
 @csrf_exempt
-@login_required
 def delete_account(request):
     if request.method == 'DELETE':
         user = request.user
