@@ -385,7 +385,7 @@ def submit_form(request):
         )
 
         # Send email to the user
-        user_message = f'Thank you for booking a mental health professional. We will contact you via email or phone soon.\n\nBooking Details:\nDate: {date}\nTime: {time}\nReason: {reason}\nLanguage: {language}\nPlan: {plan}Anonymous: {anonymous}. \n\n Best regards,\n SereniMind.'
+        user_message = f'Thank you for booking a mental health professional. We will contact you via email or phone soon.\n\nBooking Details:\nDate: {date}\nTime: {time}\nReason: {reason}\nLanguage: {language}\nPlan: {plan}\nAnonymous: {anonymous}. \n\n Best regards,\n SereniMind.'
         send_mail(
             'Booking Confirmation',
             user_message,
