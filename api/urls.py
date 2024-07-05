@@ -58,6 +58,7 @@ urlpatterns = [
     path('delete-account/', delete_account, name='delete_account'),
     path('send-email/', send_email, name='send_email'),
     path('subscribe-newsletter/', subscribe_newsletter, name='subscribe_newsletter'),
+
 ]
 
 

@@ -122,6 +122,7 @@ from django.contrib.auth.decorators import login_required
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_info_dashboard(request):
@@ -371,9 +372,10 @@ def submit_form(request):
         email = data.get('email')
         language = data.get('language')
         plan = data.get('plan')
+        anonymous = data.get('anonymous')
 
         # Send email to team@serenimind.com.ng
-        timingotech_message = f'New booking details:\nDate: {date}\nTime: {time}\nReason: {reason}\nPhone Number: {phone_number}\nEmail: {email}\nLanguage: {language}\nPlan: {plan}'
+        timingotech_message = f'New booking details:\nDate: {date}\nTime: {time}\nReason: {reason}\nPhone Number: {phone_number}\nEmail: {email}\nLanguage: {language}\nPlan: {plan}\nAnonymous: {anonymous}'
         send_mail(
             'New Booking',
             timingotech_message,
