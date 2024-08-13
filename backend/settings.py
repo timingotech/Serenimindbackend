@@ -98,7 +98,7 @@ DATABASES = {
     }
 }
 
-DATABASES ["default"] = dj_database_url.parse("postgres://testdb_zsxo_user:4Uk7Nc5I6NcFmYFlLlYcm1RKACx5tYy9@dpg-co1j8pn79t8c73celqfg-a.oregon-postgres.render.com/testdb_zsxo")
+DATABASES ["default"] = dj_database_url.parse("postgresql://testdb_zsxo_user:4Uk7Nc5I6NcFmYFlLlYcm1RKACx5tYy9@dpg-co1j8pn79t8c73celqfg-a.oregon-postgres.render.com/testdb_zsxo")
 
 
 
