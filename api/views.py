@@ -680,6 +680,7 @@ def todos(request):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+# Updated POST logic for creating a todo
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def todos_list_create(request):
@@ -690,12 +691,16 @@ def todos_list_create(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
-        user = request.user
-        serializer = TodoSerializer(data=request.data)
+        user = request.user  # Get the authenticated user
+        # Ensure that deadline is passed in the request
+        data = request.data.copy()  # Create a mutable copy of request data
+        data['user'] = user.id  # Assign the user ID to the data
+        serializer = TodoSerializer(data=data)
         if serializer.is_valid():
-            serializer.save(user=user)
+            serializer.save(user=user)  # Explicitly set the user
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @permission_classes([IsAuthenticated])
 @api_view(['GET', 'PUT', 'DELETE'])
