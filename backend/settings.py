@@ -150,7 +150,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'team@serenimind.com.ng'
-EMAIL_HOST_PASSWORD = 'jX$N%Ghqk0'   
+EMAIL_HOST_PASSWORD = '~L_1jz0itOg$'   
 
 DEFAULT_FROM_EMAIL = 'team@serenimind.com.ng'
 
