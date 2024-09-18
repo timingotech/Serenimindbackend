@@ -121,7 +121,7 @@ from .serializers import JournalEntrySerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from .ml_model import predict_sentiment  # Adjust the import path as necessary
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -524,15 +524,7 @@ def journal_entry_detail(request, pk):
 class MessageListCreateAPIView(generics.ListCreateAPIView):
     queryset = Message.objects.all()
     serializer_class = MessageSerializer
-
-    def perform_create(self, serializer):
-        content = serializer.validated_data['content']
-        sentiment = predict_sentiment(content)
-
-        if sentiment == 'negative':
-            raise serializers.ValidationError({'error': 'Message violates guidelines'})  # Raise validation error for negative messages
-        else:
-            serializer.save()
+    # You may need to override `perform_create` to associate user and community with the message
 
 
 class MessageListCreate(generics.ListCreateAPIView):
