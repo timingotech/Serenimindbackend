@@ -96,3 +96,20 @@ class MoodEntry(models.Model):
     date = models.DateField()
     mood_rating = models.IntegerField()
     notes = models.TextField(blank=True)
+
+
+class MoodAssessment(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    happiness = models.IntegerField()
+    anxiety = models.CharField(max_length=20)
+    energy = models.CharField(max_length=20)
+    sleep_quality = models.IntegerField()
+    appetite = models.IntegerField()
+    physical_health = models.IntegerField()
+    concentration = models.IntegerField()
+    social_connections = models.IntegerField()
+    stress_level = models.IntegerField()
+
+    def __str__(self):
+        return f"{self.user.username}'s mood assessment on {self.timestamp}"

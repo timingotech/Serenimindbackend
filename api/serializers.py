@@ -9,6 +9,8 @@ from .models import Message
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .models import UserSettings
 from .models import Todo, MoodEntry
+from rest_framework import serializers
+from .models import MoodAssessment
 
 class TodoSerializer(serializers.ModelSerializer):
     class Meta:
@@ -95,3 +97,10 @@ class SenderIdSerializer(serializers.ModelSerializer):
     class Meta:
         model = Message
         fields = ['user_id']
+        
+
+class MoodAssessmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MoodAssessment
+        fields = '__all__'
+        read_only_fields = ('user', 'timestamp')

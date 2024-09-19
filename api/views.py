@@ -121,6 +121,10 @@ from .serializers import JournalEntrySerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from .models import MoodAssessment
+from .serializers import MoodAssessmentSerializer
 
 
 @api_view(['GET'])
@@ -845,3 +849,13 @@ def subscribe_newsletter(request):
         
         return JsonResponse({'message': 'Successfully subscribed to the newsletter'})
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+class MoodAssessmentView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = MoodAssessmentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(user=request.user)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

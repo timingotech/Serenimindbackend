@@ -4,6 +4,7 @@ from .models import Message
 from .models import JournalEntry
 from .models import UserSettings
 from .models import Todo
+from .models import MoodAssessment
 
 # Register your models here
 
@@ -32,6 +33,11 @@ class JournalEntry(admin.ModelAdmin):
 class TodoAdmin(admin.ModelAdmin):
     # Define fields to display in the admin panel
     list_display = ('id', 'text', 'deadline','user')
+    
+@admin.register(MoodAssessment)
+class MoodAssessment (admin.ModelAdmin):
+    list_display = ('user', 'timestamp', 'happiness','anxiety', 'energy', 'sleep_quality', 'appetite', 'physical_health', 'concentration', 'social_connections', 'stress_level')
 
 # Register the Todo model with the custom admin options
 admin.site.register(Todo, TodoAdmin)
+
