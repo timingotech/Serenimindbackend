@@ -59,6 +59,7 @@ urlpatterns = [
     path('send-email/', send_email, name='send_email'),
     path('subscribe-newsletter/', subscribe_newsletter, name='subscribe_newsletter'),
     path('mood-assessment/', MoodAssessmentView.as_view(), name='mood_assessment'),
+    path('report-message/<int:message_id>/', views.report_message, name='report_message'),
 
 ]
 

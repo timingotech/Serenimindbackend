@@ -125,6 +125,8 @@ from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from .models import MoodAssessment
 from .serializers import MoodAssessmentSerializer
+from django.conf import settings
+from .models import Message, Report
 
 
 @api_view(['GET'])
@@ -859,3 +861,51 @@ class MoodAssessmentView(APIView):
             serializer.save(user=request.user)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def report_message(request, message_id):
+    try:
+        message = Message.objects.get(id=message_id)
+    except Message.DoesNotExist:
+        return Response({"error": "Message not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    reporter = request.user
+    
+    # Create a new report
+    report = Report.objects.create(
+        message=message,
+        reported_by=reporter
+    )
+
+    # Prepare email content
+    subject = f"Message Reported in Community: {message.community.name}"
+    email_body = f"""
+    A message has been reported:
+
+    Message ID: {message.id}
+    Message Content: {message.content}
+    Posted by: {message.user.username}
+    Posted on: {message.timestamp}
+    
+    Reported by: {reporter.username}
+    Report timestamp: {report.timestamp}
+
+    Please review this message for any violations of community guidelines.
+    """
+    
+    # Send email
+    try:
+        send_mail(
+            subject,
+            email_body,
+            'team@serenimind.com.ng',  # replace with your email
+            ['team@serenimind.com.ng'],
+            fail_silently=False,
+        )
+    except Exception as e:
+        # Log the error, but don't expose it to the user
+        print(f"Error sending email: {str(e)}")
+
+    return Response({"message": "Report submitted successfully"}, status=status.HTTP_201_CREATED)
