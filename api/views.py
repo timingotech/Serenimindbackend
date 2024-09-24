@@ -122,13 +122,163 @@ from django.contrib.auth.decorators import login_required
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
-from .models import MoodAssessment
-from .serializers import MoodAssessmentSerializer
-from django.conf import settings
-from .models import Message, Report
+from rest_framework.response import Response
+from .models import Conversation, AIMessage
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
+import os
+import pickle
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+import nltk
+import random  # Import random for selecting responses
 
+try:
+    nltk.data.find('tokenizers/punkt')
+    nltk.data.find('corpora/stopwords')
+    NLTK_DATA_AVAILABLE = True
+except (LookupError, ImportError):
+    nltk.download('punkt')
+    nltk.download('stopwords')
+    NLTK_DATA_AVAILABLE = True
 
+class ChatbotView(APIView):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.load_or_train_model()
+
+    def load_or_train_model(self):
+        model_path = 'model.pkl'
+        # Check if model already exists
+        if os.path.exists(model_path):
+            try:
+                with open(model_path, 'rb') as f:
+                    self.model = pickle.load(f)
+            except (FileNotFoundError, pickle.UnpicklingError) as e:
+                print(f"Error loading model: {e}")
+                self.train_model()  # Train the model if loading fails
+        else:
+            self.train_model()
+
+    def train_model(self):
+        # Updated intent training data
+        intents = {
+            "greet": ["hello", "hi", "greetings", "good morning"],
+            "goodbye": ["bye", "goodbye", "see you later"],
+            "thanks": ["thanks", "thank you"],
+            "help": ["help", "can you assist", "need support"],
+            "weather": ["what's the weather", "weather update", "tell me the weather"],
+            "joke": ["tell me a joke", "make me laugh", "say something funny"],
+            "mood": ["I'm feeling sad", "I'm happy", "I'm stressed out", "I'm anxious"],
+        }
+
+        # Tokenization and stopword removal using NLTK
+        if NLTK_DATA_AVAILABLE:
+            stop_words = set(stopwords.words('english'))
+        else:
+            stop_words = set()  # In case NLTK data isn't available
+
+        all_texts = []
+        all_labels = []
+        for intent, phrases in intents.items():
+            for phrase in phrases:
+                tokens = word_tokenize(phrase.lower())
+                filtered_tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
+                all_texts.append(' '.join(filtered_tokens))
+                all_labels.append(intent)
+
+        # Vectorization using TF-IDF
+        vectorizer = TfidfVectorizer()
+        X = vectorizer.fit_transform(all_texts)
+
+        # Training a simple logistic regression model
+        model = LogisticRegression()
+        model.fit(X, all_labels)
+
+        self.model = (model, vectorizer)  # Save both the model and vectorizer
+
+        # Save the model to a file
+        with open('model.pkl', 'wb') as f:
+            pickle.dump((model, vectorizer), f)
+
+    def post(self, request):
+        # Updated responses for each intent with multiple options
+        responses = {
+            "greet": [
+                "Hello! How can I assist you today?",
+                "Hi there! What can I help you with?",
+                "Greetings! How may I help you?"
+            ],
+            "goodbye": [
+                "Goodbye! Take care.",
+                "See you later! Have a great day!",
+                "Farewell! Until next time!"
+            ],
+            "thanks": [
+                "You're welcome! Happy to help.",
+                "No problem! I'm here if you need anything else.",
+                "Glad I could assist!"
+            ],
+            "help": [
+                "Sure! Let me know what you need assistance with.",
+                "I'm here to help! What do you need?",
+                "How can I assist you today?"
+            ],
+            # New responses
+            "weather": [
+                "The weather is sunny with a slight breeze. Is there anything else you need?",
+                "It's raining outside. Don't forget your umbrella!",
+                "Expect a cold front later today. Stay warm!"
+            ],
+            "joke": [
+                "Why don't scientists trust atoms? Because they make up everything!",
+                "I told my computer I needed a break, and now it won't stop sending me ads for vacations!",
+                "Why did the scarecrow win an award? Because he was outstanding in his field!"
+            ],
+            "mood": [
+                "I'm here for you. Would you like some tips on managing stress or improving your mood?",
+                "It's okay to feel that way. Talking helps, do you want to chat more?",
+                "Remember, it’s okay to express how you feel. How can I support you?"
+            ],
+            "unknown": [
+                "I'm not sure I understand. Could you rephrase?",
+                "Could you clarify what you mean?",
+                "I'm sorry, I didn't get that. Can you say it differently?"
+            ]
+        }
+
+        # Get user input from the request
+        user_message = request.data.get('message', '')
+
+        if not user_message:
+            return Response({"error": "No message provided."}, status=400)
+
+        # Preprocess the user input and make predictions
+        try:
+            model, vectorizer = self.model
+            if NLTK_DATA_AVAILABLE:
+                stop_words = set(stopwords.words('english'))
+            else:
+                stop_words = set()
+
+            tokens = word_tokenize(user_message.lower())
+            filtered_tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
+            user_input_vectorized = vectorizer.transform([' '.join(filtered_tokens)])
+
+            # Predict the intent
+            predicted_intent = model.predict(user_input_vectorized)[0]
+
+            # Randomly select a response based on the predicted intent
+            response_message = random.choice(responses.get(predicted_intent, responses["unknown"]))
+
+            return Response({"intent": predicted_intent, "response": response_message}, status=200)
+
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
+
+        
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_info_dashboard(request):

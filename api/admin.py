@@ -4,7 +4,7 @@ from .models import Message
 from .models import JournalEntry
 from .models import UserSettings
 from .models import Todo
-from .models import MoodAssessment
+from .models import MoodAssessment, Conversation, AIMessage
 
 # Register your models here
 
@@ -41,3 +41,13 @@ class MoodAssessment (admin.ModelAdmin):
 # Register the Todo model with the custom admin options
 admin.site.register(Todo, TodoAdmin)
 
+@admin.register(Conversation)
+class ConversationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'created_at', 'updated_at')
+    list_filter = ('created_at', 'updated_at')
+
+@admin.register(AIMessage)
+class AIMessageAdmin(admin.ModelAdmin):
+    list_display = ('id', 'conversation', 'is_bot', 'content', 'created_at')
+    list_filter = ('is_bot', 'created_at')
+    search_fields = ('content',)

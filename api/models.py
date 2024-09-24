@@ -118,3 +118,13 @@ class MoodAssessment(models.Model):
 
     def __str__(self):
         return f"{self.user.username}'s mood assessment on {self.timestamp}"
+
+class Conversation(models.Model):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+class AIMessage(models.Model):
+    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
+    content = models.TextField()
+    is_bot = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)

@@ -3,7 +3,7 @@ from django.contrib.auth import views as auth_views
 from .views import signup, login ,csrf_token, submit_form,logout_view, get_user_data, send_verification_email, verification,  password_reset,MessageListCreateAPIView,  MessageListCreate, MessageRetrieveUpdateDestroy, MessageDetailView, MessageEditView, MessageDeleteView,get_user_info_dashboard, delete_account
 from . import views 
 from rest_framework import routers
-from .views import CommunityViewSet, MyTokenObtainPairView, get_user_data, SenderIdAPIView, get_user_username, UserSettingsView, MoodEntryListCreateAPIView, MoodEntryRetrieveUpdateDestroyAPIView, CommunityViewSet, DeleteUserAccountView, send_email, subscribe_newsletter, MoodAssessmentView
+from .views import CommunityViewSet, MyTokenObtainPairView, get_user_data, SenderIdAPIView, get_user_username, UserSettingsView, MoodEntryListCreateAPIView, MoodEntryRetrieveUpdateDestroyAPIView, CommunityViewSet, DeleteUserAccountView, send_email, subscribe_newsletter, MoodAssessmentView, ChatbotView
 from rest_framework_simplejwt.views import (
     
     TokenRefreshView,
@@ -60,6 +60,7 @@ urlpatterns = [
     path('subscribe-newsletter/', subscribe_newsletter, name='subscribe_newsletter'),
     path('mood-assessment/', MoodAssessmentView.as_view(), name='mood_assessment'),
     path('report-message/<int:message_id>/', views.report_message, name='report_message'),
+    path('chat/', ChatbotView.as_view(), name='chat'),
 
 ]
 
