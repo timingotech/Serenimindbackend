@@ -138,13 +138,20 @@ import nltk
 import random  # Import random for selecting responses
 
 # Download required NLTK data
+# Ensure NLTK data is downloaded
+NLTK_DATA_PATH = '/opt/render/api/punkt'
+if not os.path.exists(NLTK_DATA_PATH):
+    os.makedirs(NLTK_DATA_PATH)
+
+nltk.data.path.append(NLTK_DATA_PATH)
+
 try:
     nltk.data.find('tokenizers/punkt')
     nltk.data.find('corpora/stopwords')
     NLTK_DATA_AVAILABLE = True
-except (LookupError, ImportError):
-    nltk.download('punkt')  # Ensure punkt is downloaded
-    nltk.download('stopwords')  # Ensure stopwords are downloaded
+except LookupError:
+    nltk.download('punkt', download_dir=NLTK_DATA_PATH)
+    nltk.download('stopwords', download_dir=NLTK_DATA_PATH)
     NLTK_DATA_AVAILABLE = True
 
 class ChatbotView(APIView):
