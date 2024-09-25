@@ -128,6 +128,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 import os
 import pickle
+import os
+import pickle
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from nltk.tokenize import word_tokenize
@@ -135,13 +137,14 @@ from nltk.corpus import stopwords
 import nltk
 import random  # Import random for selecting responses
 
+# Download required NLTK data
 try:
     nltk.data.find('tokenizers/punkt')
     nltk.data.find('corpora/stopwords')
     NLTK_DATA_AVAILABLE = True
 except (LookupError, ImportError):
-    nltk.download('punkt')
-    nltk.download('stopwords')
+    nltk.download('punkt')  # Ensure punkt is downloaded
+    nltk.download('stopwords')  # Ensure stopwords are downloaded
     NLTK_DATA_AVAILABLE = True
 
 class ChatbotView(APIView):
@@ -169,6 +172,7 @@ class ChatbotView(APIView):
             "goodbye": ["bye", "goodbye", "see you later"],
             "thanks": ["thanks", "thank you"],
             "help": ["help", "can you assist", "need support"],
+            # New intents
             "weather": ["what's the weather", "weather update", "tell me the weather"],
             "joke": ["tell me a joke", "make me laugh", "say something funny"],
             "mood": ["I'm feeling sad", "I'm happy", "I'm stressed out", "I'm anxious"],
