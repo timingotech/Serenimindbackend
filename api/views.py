@@ -139,7 +139,7 @@ import random  # Import random for selecting responses
 
 # Download required NLTK data
 # Ensure NLTK data is downloaded
-NLTK_DATA_PATH = '/opt/render/api/punkt'
+NLTK_DATA_PATH = '/opt/render/punkt'
 if not os.path.exists(NLTK_DATA_PATH):
     os.makedirs(NLTK_DATA_PATH)
 
