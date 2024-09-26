@@ -14,6 +14,7 @@ from rest_framework import status
 from .serializers import UserProfile
 from django.views.decorators.csrf import csrf_exempt
 import requests
+from .models import Report
 from .models import UserProfile
 from rest_framework import viewsets, permissions
 from rest_framework.response import Response
@@ -117,6 +118,7 @@ from .serializers import UserSerializer
 from django.contrib.auth.models import User
 from rest_framework.response import Response
 from .models import JournalEntry
+from .serializers import MoodAssessmentSerializer
 from .serializers import JournalEntrySerializer
 from django.contrib.auth.decorators import login_required
 from rest_framework_simplejwt.tokens import RefreshToken
