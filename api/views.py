@@ -130,17 +130,17 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 import os
 import pickle
-import os
-import pickle
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 import nltk
-import random  # Import random for selecting responses
+import random
+from collections import Counter
+from rest_framework.views import APIView
+from rest_framework.response import Response
 
 # Download required NLTK data
-# Ensure NLTK data is downloaded
 NLTK_DATA_PATH = '/opt/render/punkt'
 if not os.path.exists(NLTK_DATA_PATH):
     os.makedirs(NLTK_DATA_PATH)
@@ -149,12 +149,10 @@ nltk.data.path.append(NLTK_DATA_PATH)
 
 try:
     nltk.data.find('tokenizers/punkt')
-    nltk.data.find('tokenizers/punkt_tab')
     nltk.data.find('corpora/stopwords')
     NLTK_DATA_AVAILABLE = True
 except LookupError:
     nltk.download('punkt', download_dir=NLTK_DATA_PATH)
-    nltk.download('punkt_tab', download_dir=NLTK_DATA_PATH)
     nltk.download('stopwords', download_dir=NLTK_DATA_PATH)
     NLTK_DATA_AVAILABLE = True
 
@@ -162,6 +160,35 @@ class ChatbotView(APIView):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.load_or_train_model()
+        self.intents = {
+            'greeting': ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'howdy', 'greetings'],
+    'farewell': ['bye', 'goodbye', 'see you later', 'take care', 'farewell', 'until next time', 'catch you later'],
+    'thanks': ['thank you', 'thanks', 'appreciate it', 'grateful', 'much obliged', 'cheers'],
+    'help': ['help', 'can you help me', 'I need assistance', 'support', 'guidance', 'aid', 'what can you do'],
+    'feeling_good': ["I feel good", "I'm happy", 'feeling great', 'excited', 'joyful', 'content', 'on top of the world'],
+    'feeling_bad': ["I feel bad", "I'm sad", 'feeling down', 'depressed', 'unhappy', 'miserable', 'gloomy', 'anxious'],
+    'stress': ['stressed', 'overwhelmed', 'under pressure', 'burnout', 'can\'t cope', 'too much to handle'],
+    'sleep_issues': ['can\'t sleep', 'insomnia', 'trouble sleeping', 'wake up tired', 'nightmares', 'sleep problems'],
+    'relationship': ['relationship problems', 'breakup', 'divorce', 'family issues', 'friend trouble', 'loneliness'],
+    'work': ['job stress', 'career change', 'workplace issues', 'unemployment', 'work-life balance'],
+    'health': ['health concerns', 'illness', 'chronic pain', 'disability', 'medical anxiety'],
+    'self_improvement': ['want to improve', 'self-development', 'personal growth', 'learning', 'new skills'],
+    'meditation': ['how to meditate', 'mindfulness', 'relaxation techniques', 'calm my mind'],
+    'exercise': ['workout routine', 'stay fit', 'exercise motivation', 'physical activity'],
+    'nutrition': ['healthy eating', 'diet advice', 'nutritional information', 'food and mood'],
+    'motivation': ['lack motivation', 'how to stay motivated', 'setting goals', 'achieving objectives'],
+    'anger': ['anger management', 'feeling frustrated', 'how to control temper', 'dealing with rage'],
+    'anxiety': ['feeling anxious', 'panic attacks', 'social anxiety', 'worry too much'],
+    'depression': ['dealing with depression', 'feeling hopeless', 'loss of interest', 'persistent sadness'],
+    'ai_companion': ['AI friend', 'talk to AI', 'SereniAI features', 'AI support', 'how can AI help me'],
+    'community_support': ['join community', 'support groups', 'connect with others', 'share experiences', 'community features'],
+    'journaling': ['personal journal', 'how to journal', 'reflection techniques', 'track progress', 'journal features'],
+    'mood_boosting_activities': ['fun activities', 'games for mood', 'mood improvement', 'feel better activities', 'uplift spirits'],
+    'blog_posts': ['read blogs', 'inspiring articles', 'write a blog', 'motivational content', 'positive reading'],
+    'daily_inspiration': ['daily quotes', 'morning motivation', 'inspirational messages', 'positive reminders', 'daily encouragement'],
+    'platform_info': ['SereniMind features', 'what services do you offer', 'how can SereniMind help me', 'tell me about SereniMind', 'what is SereniMind'],
+    'question': ['can you explain','why','what','how'],
+    }
 
     def load_or_train_model(self):
         model_path = 'model.pkl'
@@ -177,18 +204,6 @@ class ChatbotView(APIView):
             self.train_model()
 
     def train_model(self):
-        # Updated intent training data
-        intents = {
-            "greet": ["hello", "hi", "greetings", "good morning"],
-            "goodbye": ["bye", "goodbye", "see you later"],
-            "thanks": ["thanks", "thank you"],
-            "help": ["help", "can you assist", "need support"],
-            # New intents
-            "weather": ["what's the weather", "weather update", "tell me the weather"],
-            "joke": ["tell me a joke", "make me laugh", "say something funny"],
-            "mood": ["I'm feeling sad", "I'm happy", "I'm stressed out", "I'm anxious"],
-        }
-
         # Tokenization and stopword removal using NLTK
         if NLTK_DATA_AVAILABLE:
             stop_words = set(stopwords.words('english'))
@@ -197,7 +212,7 @@ class ChatbotView(APIView):
 
         all_texts = []
         all_labels = []
-        for intent, phrases in intents.items():
+        for intent, phrases in self.intents.items():
             for phrase in phrases:
                 tokens = word_tokenize(phrase.lower())
                 filtered_tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
@@ -221,47 +236,209 @@ class ChatbotView(APIView):
     def post(self, request):
         # Updated responses for each intent with multiple options
         responses = {
-            "greet": [
-                "Hello! How can I assist you today?",
-                "Hi there! What can I help you with?",
-                "Greetings! How may I help you?"
-            ],
-            "goodbye": [
-                "Goodbye! Take care.",
-                "See you later! Have a great day!",
-                "Farewell! Until next time!"
-            ],
-            "thanks": [
-                "You're welcome! Happy to help.",
-                "No problem! I'm here if you need anything else.",
-                "Glad I could assist!"
-            ],
-            "help": [
-                "Sure! Let me know what you need assistance with.",
-                "I'm here to help! What do you need?",
-                "How can I assist you today?"
-            ],
-            # New responses
-            "weather": [
-                "The weather is sunny with a slight breeze. Is there anything else you need?",
-                "It's raining outside. Don't forget your umbrella!",
-                "Expect a cold front later today. Stay warm!"
-            ],
-            "joke": [
-                "Why don't scientists trust atoms? Because they make up everything!",
-                "I told my computer I needed a break, and now it won't stop sending me ads for vacations!",
-                "Why did the scarecrow win an award? Because he was outstanding in his field!"
-            ],
-            "mood": [
-                "I'm here for you. Would you like some tips on managing stress or improving your mood?",
-                "It's okay to feel that way. Talking helps, do you want to chat more?",
-                "Remember, it’s okay to express how you feel. How can I support you?"
-            ],
-            "unknown": [
-                "I'm not sure I understand. Could you rephrase?",
-                "Could you clarify what you mean?",
-                "I'm sorry, I didn't get that. Can you say it differently?"
-            ]
+            'greeting': [
+        'Hello! How can I assist you today?',
+        'Hi there! How are you feeling?',
+        'Greetings! What brings you to our chat today?',
+        'Good to see you! How has your day been so far?',
+        'Welcome! Is there anything specific on your mind?'
+    ],
+    'farewell': [
+        "Goodbye! Take care and remember, you're stronger than you think.",
+        "See you later. Remember, I'm here if you need to talk.",
+        "Farewell for now. Stay positive and keep moving forward!",
+        "Until next time! Don't forget to practice self-care.",
+        "Take care! Remember, every day is a new opportunity."
+    ],
+    'thanks': [
+        "You're welcome! I'm glad I could help.",
+        "It's my pleasure. Remember, you're doing great!",
+        "I'm happy to assist. Keep up the good work!",
+        "Anytime! Your well-being is important to me.",
+        "No need to thank me. You're the one doing the hard work!"
+    ],
+    'help': [
+        "I'm here to help. What's on your mind?",
+        "How can I assist you today? I'm all ears.",
+        "I'm here to support you. What would you like to talk about?",
+        "Let's work through this together. What's troubling you?",
+        "I'm your AI companion, ready to help. What do you need?"
+    ],
+    'feeling_good': [
+        "That's wonderful to hear! What's contributing to your positive mood?",
+        "I'm so glad you're feeling good. What's been going well for you?",
+        "It's great that you're in a good mood! How can we maintain this positive energy?",
+        "Fantastic! Positive feelings are worth celebrating. What's making you feel this way?",
+        "That's excellent! Let's build on this positive feeling. What's your next goal?"
+    ],
+    'feeling_bad': [
+        "I'm sorry to hear that. Would you like to talk about what's bothering you?",
+        "It's okay to feel down sometimes. Can you tell me more about what's going on?",
+        "I'm here to listen. What do you think is causing these negative feelings?",
+        "Your feelings are valid. Let's explore what's troubling you and see if we can find a way forward.",
+        "Thank you for sharing. It takes courage to admit when we're not feeling our best. How can I support you?"
+    ],
+    'question': [
+        "That's an interesting question. Can you provide more context?",
+        "I'd be happy to help answer that. Could you give me more details?",
+        "Great question! Let's explore that together. What specifically would you like to know?",
+        "Questions are the first step to understanding. Can you elaborate on what you're asking?",
+        "I'm here to help you find answers. Can you tell me more about what prompted this question?"
+    ],
+    'stress': [
+        "It sounds like you're under a lot of pressure. Let's talk about some stress management techniques.",
+        "Feeling overwhelmed is common. Have you tried any relaxation exercises?",
+        "Stress can be challenging. Would you like to explore some coping strategies together?",
+        "I hear you're feeling stressed. Let's break down what's causing this and address each part.",
+        "Managing stress is important for your well-being. How about we discuss some self-care practices?"
+    ],
+    'sleep_issues': [
+        "Sleep problems can be frustrating. Have you established a regular sleep routine?",
+        "Trouble sleeping can affect your whole day. Let's talk about some sleep hygiene tips.",
+        "Insomnia can be challenging. Have you considered trying relaxation techniques before bed?",
+        "Sleep is crucial for mental health. Would you like to explore some natural sleep aids?",
+        "Waking up tired can be tough. Let's discuss ways to improve your sleep quality."
+    ],
+    'relationship': [
+        "Relationship challenges can be difficult. Would you like to talk more about what's happening?",
+        "I'm sorry you're experiencing relationship troubles. How long has this been going on?",
+        "Relationship issues can be complex. Have you considered couples counseling?",
+        "It's brave of you to address your relationship concerns. What do you think is at the root of the problem?",
+        "Navigating relationships can be tough. Let's discuss some communication strategies that might help."
+    ],
+    'work': [
+        "Work-related stress is common. How do you usually cope with job pressure?",
+        "Career changes can be both exciting and scary. What's motivating this change?",
+        "Balancing work and life can be challenging. Would you like to explore some time management techniques?",
+        "I'm sorry to hear about your workplace issues. Have you spoken with HR or a supervisor about this?",
+        "Unemployment can be stressful. Let's talk about strategies for job searching and maintaining positivity."
+    ],
+    'health': [
+        "Health concerns can be worrying. Have you consulted with a healthcare professional about this?",
+        "Chronic pain can be challenging to manage. Are you interested in discussing some pain management techniques?",
+        "I understand your health anxiety. Would you like to explore some ways to manage these feelings?",
+        "Living with a disability presents unique challenges. How can I support you in navigating this?",
+        "Your health is important. Let's talk about ways to prioritize your well-being while managing your condition."
+    ],
+    'self_improvement': [
+        "It's great that you want to improve yourself! What specific areas are you looking to develop?",
+        "Personal growth is a journey. What inspired you to focus on self-improvement?",
+        "Learning new skills can be exciting. Do you have any specific goals in mind?",
+        "Self-development is a positive step. How do you plan to track your progress?",
+        "It's admirable that you're focusing on personal growth. What's the first small step you can take today?"
+    ],
+    'meditation': [
+        "Meditation can be a powerful tool for mental health. Have you tried any guided meditation apps?",
+        "Mindfulness practices can help calm the mind. Would you like to try a short breathing exercise?",
+        "Learning to meditate takes time and patience. What has been your experience so far?",
+        "Relaxation techniques can be very beneficial. Are you interested in learning about progressive muscle relaxation?",
+        "Calming the mind through meditation is a valuable skill. How about we start with a simple 5-minute mindfulness exercise?"
+    ],
+    'exercise': [
+        "Regular exercise is great for both physical and mental health. What types of activities do you enjoy?",
+        "Starting a workout routine can be challenging. How about we discuss some simple exercises to begin with?",
+        "Staying motivated to exercise isn't always easy. Would you like to explore some strategies to keep yourself going?",
+        "Physical activity is a great mood booster. Have you considered joining any sports or fitness classes?",
+        "Finding time for exercise can be tough. Let's brainstorm some ways to incorporate more movement into your daily routine."
+    ],
+    'nutrition': [
+        "Healthy eating plays a big role in overall well-being. Would you like to discuss some balanced meal ideas?",
+        "Diet can significantly impact mood and energy levels. How would you describe your current eating habits?",
+        "Nutritional information can be overwhelming. Are there specific areas of your diet you'd like to improve?",
+        "The connection between food and mood is strong. Have you noticed any foods that seem to affect how you feel?",
+        "Making dietary changes can be challenging. Let's start by talking about small, sustainable changes you can make."
+    ],
+    'motivation': [
+        "Lack of motivation can be frustrating. What usually helps you feel motivated?",
+        "Setting and achieving goals can boost motivation. Would you like to discuss goal-setting strategies?",
+        "Sometimes motivation comes after we start acting. How about we break down your goal into smaller, manageable tasks?",
+        "Staying motivated is an ongoing process. Have you tried using a reward system for accomplishing tasks?",
+        "It's normal for motivation to fluctuate. Let's explore some techniques to help you stay on track with your objectives."
+    ],
+    'anger': [
+        "Managing anger can be challenging. Have you identified any specific triggers for your anger?",
+        "Learning to control your temper is a valuable skill. Would you like to discuss some anger management techniques?",
+        "Feeling frequently frustrated can be tough. How do you typically express your anger?",
+        "Dealing with rage in a healthy way is important. Let's talk about some strategies to help you cool down when you're angry.",
+        "Anger often masks other emotions. Can we explore what might be beneath your anger?"
+    ],
+    'anxiety': [
+        "Anxiety can be overwhelming. Have you tried any relaxation techniques to manage your anxiety?",
+        "Feeling anxious is a common experience. Would you like to discuss some coping strategies?",
+        "Panic attacks can be scary. Let's talk about some grounding techniques that might help during an attack.",
+        "Social anxiety can be challenging. How does it typically affect your daily life?",
+        "Excessive worry can be draining. Have you considered keeping a worry journal to track your anxious thoughts?"
+    ],
+    'depression': [
+        "I'm sorry you're dealing with depression. Have you been able to talk to a mental health professional about how you're feeling?",
+        "Feeling hopeless can be really tough. Can you tell me more about what's been going on?",
+        "Loss of interest in activities is a common symptom of depression. Are there any activities you used to enjoy?",
+        "Persistent sadness is difficult to handle alone. Would you like to explore some self-care strategies that might help?",
+        "Depression is a serious condition, but there is hope. How can I support you in seeking help or treatment?"
+    ],
+    'unknown': [
+        "I'm not sure I fully understand. Could you rephrase that or provide more details?",
+        "I'm still learning and growing. Can you tell me more about what you mean?",
+        "I want to make sure I'm addressing your needs correctly. Could you elaborate on that?",
+        "I'm not quite sure how to respond to that. Can you give me some more context?",
+        "I'm afraid I don't have enough information to respond accurately. Could you clarify your question or statement?"
+    ],
+    'seek_professional_help': [
+        "It's great that you're considering professional help. SereniMind offers personalized guidance from experienced mental health professionals. Would you like me to guide you through booking a session?",
+        "Seeking professional support is a strong and positive step. We have a range of experts available, from counselors to career coaches. Can I help you find the right professional for your needs?",
+        "I'm glad you're reaching out for professional support. SereniMind's network of mental health professionals is here to help. What kind of support are you looking for?",
+        "Professional guidance can be incredibly beneficial. SereniMind offers various types of professional support. Would you like to explore our counseling services?",
+        "It's courageous to seek professional help. SereniMind can connect you with experienced therapists. Shall we look at available options together?"
+    ],
+    'ai_companion': [
+        "As your AI companion, I'm here to offer support and a safe space for open conversations. How can I assist you today?",
+        "SereniAI is designed to be your trusted AI friend, offering tailored support. What would you like to talk about?",
+        "I'm your AI-powered confidant, here to listen and support you. Is there anything specific on your mind?",
+        "As an AI companion, I'm here to offer a judgment-free space for you to express yourself. What would you like to discuss?",
+        "SereniAI is here to provide personalized support. How can I make your day a little brighter?"
+    ],
+    'community_support': [
+        "SereniMind offers a supportive community where you can connect with like-minded individuals. Would you like to learn more about our community features?",
+        "Sharing experiences and growing together can be really beneficial. Our community provides a nurturing space for this. Are you interested in joining?",
+        "The SereniMind community is a great place to find support and understanding. What kind of connections are you looking to make?",
+        "Our supportive community is here to help you on your journey. Would you like to explore how you can engage with others who may have similar experiences?",
+        "Connecting with others can be a powerful tool for growth. How about we take a look at the community features SereniMind offers?"
+    ],
+    'journaling': [
+        "SereniMind offers a personal journal feature to help with self-discovery and tracking your progress. Would you like some tips on how to get started with journaling?",
+        "Journaling can be a great tool for reflection and goal-setting. How about we explore some journaling prompts together?",
+        "Our personalized journal is designed to help you reflect and grow. What aspects of journaling are you most interested in?",
+        "Tracking your journey through journaling can be really insightful. Would you like to learn more about how to use SereniMind's journal feature effectively?",
+        "Journaling is a powerful tool for self-discovery. Shall we discuss some techniques to make the most of your journaling practice?"
+    ],
+    'mood_boosting_activities': [
+        "SereniMind offers a variety of mood-boosting activities. Would you like to try a game, listen to some uplifting sounds, or perhaps watch a motivational video?",
+        "Engaging in fun activities can really help uplift your spirits. What kind of activity do you usually enjoy when you need a mood boost?",
+        "We have exercises specifically designed to enrich your well-being. Are you in the mood for something active, creative, or relaxing?",
+        "Mood-boosting activities can be a great way to shift your energy. Would you like to explore some of the options we have available?",
+        "From games to exercises, we have various activities to help improve your mood. What sort of activity appeals to you right now?"
+    ],
+    'blog_posts': [
+        "SereniMind features inspiring blog posts to keep you motivated. Would you like me to recommend a blog post based on how you're feeling today?",
+        "Our platform allows you to both read and create uplifting blogs. Are you interested in reading some motivational content or perhaps sharing your own story?",
+        "Engaging with positive content can help maintain focus on personal growth. What topics are you most interested in reading about?",
+        "Our blog section is filled with inspiring stories and helpful tips. Would you like to explore some recent posts?",
+        "Writing can be as therapeutic as reading. Would you like to try writing a short blog post about your experiences or read some uplifting content?"
+    ],
+    'daily_inspiration': [
+        "SereniMind offers daily inspiration to start your day on a positive note. Would you like to hear today's motivational quote?",
+        "Daily reminders can help keep you energized and focused. How about we set up personalized daily inspirational messages for you?",
+        "Starting the day with inspiration can set a positive tone. What kind of motivational content resonates with you the most?",
+        "Our daily inspiration feature is designed to boost your motivation. Would you like to customize the type of inspirational content you receive?",
+        "Positive reminders throughout the day can be really helpful. Shall we explore how to make the most of SereniMind's daily inspiration feature?"
+    ],
+    'platform_info': [
+        "SereniMind offers a range of features including professional support, AI companionship, community engagement, journaling, mood-boosting activities, inspiring blogs, and daily motivation. Which aspect would you like to know more about?",
+        "Our platform is designed to support your mental well-being through various services. We offer everything from professional counseling to AI-powered conversations. What area of support are you most interested in?",
+        "SereniMind is here to support your personal growth and mental health. We provide tools for self-reflection, community support, professional guidance, and more. How can we best assist you today?",
+        "From AI companionship to professional therapy, SereniMind offers comprehensive support for your mental well-being. Would you like an overview of our key features?",
+        "SereniMind is your all-in-one platform for mental health support. We offer professional help, community support, self-help tools, and more. What aspect of mental well-being are you looking to improve?"
+    ]
         }
 
         # Get user input from the request
@@ -270,8 +447,8 @@ class ChatbotView(APIView):
         if not user_message:
             return Response({"error": "No message provided."}, status=400)
 
-        # Preprocess the user input and make predictions
         try:
+            # Preprocess the user input and make predictions using ML model
             model, vectorizer = self.model
             if NLTK_DATA_AVAILABLE:
                 stop_words = set(stopwords.words('english'))
@@ -282,8 +459,31 @@ class ChatbotView(APIView):
             filtered_tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
             user_input_vectorized = vectorizer.transform([' '.join(filtered_tokens)])
 
-            # Predict the intent
-            predicted_intent = model.predict(user_input_vectorized)[0]
+            # Predict the intent using the ML model
+            predicted_intent_ml = model.predict(user_input_vectorized)[0]
+
+            # Count word frequencies in the user's message
+            word_freq = Counter(filtered_tokens)
+
+            # Determine intent by matching most frequent words with intents
+            intent_scores = {}
+            for intent, phrases in self.intents.items():
+                intent_score = 0
+                for phrase in phrases:
+                    phrase_tokens = word_tokenize(phrase.lower())
+                    for token in phrase_tokens:
+                        if token in word_freq:
+                            intent_score += word_freq[token]
+                intent_scores[intent] = intent_score
+
+            # Select the intent with the highest score
+            predicted_intent_freq = max(intent_scores, key=intent_scores.get)
+
+            # Combine ML prediction and frequency-based prediction
+            if intent_scores[predicted_intent_freq] > 0:
+                predicted_intent = predicted_intent_freq
+            else:
+                predicted_intent = predicted_intent_ml
 
             # Randomly select a response based on the predicted intent
             response_message = random.choice(responses.get(predicted_intent, responses["unknown"]))
@@ -292,6 +492,7 @@ class ChatbotView(APIView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
 
         
 @api_view(['GET'])
