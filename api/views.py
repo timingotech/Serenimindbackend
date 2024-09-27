@@ -149,10 +149,12 @@ nltk.data.path.append(NLTK_DATA_PATH)
 
 try:
     nltk.data.find('tokenizers/punkt')
+    nltk.data.find('tokenizers/punkt_tab')
     nltk.data.find('corpora/stopwords')
     NLTK_DATA_AVAILABLE = True
 except LookupError:
     nltk.download('punkt', download_dir=NLTK_DATA_PATH)
+    nltk.download('punkt_tab', download_dir=NLTK_DATA_PATH)
     nltk.download('stopwords', download_dir=NLTK_DATA_PATH)
     NLTK_DATA_AVAILABLE = True
 
