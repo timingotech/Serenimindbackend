@@ -1011,10 +1011,21 @@ def signup(request):
         return Response({'errors': {'username': ['User profile with this username already exists.']}}, status=status.HTTP_400_BAD_REQUEST)
     if User.objects.filter(email=email).exists():
         return Response({'errors': {'email': ['User profile with this email already exists.']}}, status=status.HTTP_400_BAD_REQUEST)
+
     # Create the User
     user = User.objects.create(username=username, email=email, first_name=first_name, last_name=last_name)
     user.set_password(password)
     user.save()
+
+    # Send notification email
+    subject = 'New User Signup'
+    message = f"A new user has signed up:\n\nFull Name: {first_name} {last_name}\nUsername: {username}\nEmail: {email}"
+    recipient_list = ['team@serenimind.com.ng']
+
+    try:
+        send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, recipient_list)
+    except Exception as e:
+        return Response({'errors': {'email': ['Failed to send email notification.']}}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     return Response({'message': 'User signed up successfully.'}, status=status.HTTP_201_CREATED)
 
