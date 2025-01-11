@@ -148,11 +148,14 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'us2.smtp.mailhostbox.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'team@serenimind.com.ng'
-EMAIL_HOST_PASSWORD = '~L_1jz0itOg$'   
-
+EMAIL_HOST_PASSWORD = 'Ei)IyIlYw8'
 DEFAULT_FROM_EMAIL = 'team@serenimind.com.ng'
+
+# Optional: Increase timeout if the server response is slow
+EMAIL_TIMEOUT = 30
+
+
 
 CORS_ORIGIN_ALLOW_ALL = True    
 
