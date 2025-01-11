@@ -130,15 +130,35 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 import os
 import pickle
+import numpy as np
+import pandas as pd
+from typing import Tuple, Dict, List, Any, Optional
+from dataclasses import dataclass
+from datetime import datetime
+import logging
+import json
+from pathlib import Path
+import torch
+import torch.nn as nn
+from transformers import BertTokenizer, BertModel
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import classification_report, confusion_matrix
 from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+from nltk.corpus import stopwords, wordnet
+from nltk import pos_tag
 import nltk
 import random
-from collections import Counter
+from collections import Counter, defaultdict
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework import status
+import spacy
+from textblob import TextBlob
+import re
+
 
 # Download required NLTK data
 NLTK_DATA_PATH = '/opt/render/punkt'
@@ -163,237 +183,1677 @@ class ChatbotView(APIView):
         super().__init__(**kwargs)
         self.load_or_train_model()
         self.intents = {
-    'greeting': ['hello', 'hi', 'hey', 'good morning', 'good afternoon', 'good evening', 'howdy', 'greetings'],
-    'farewell': ['bye', 'goodbye', 'see you later', 'take care', 'farewell', 'until next time', 'catch you later'],
-    'thanks': ['thank you', 'thanks', 'appreciate it', 'grateful', 'much obliged', 'cheers'],
-    'help': ['help', 'can you help me', 'I need assistance', 'support', 'guidance', 'aid', 'what can you do'],
-    'feeling_good': ["I feel good", "I'm happy", 'feeling great', 'excited', 'joyful', 'content', 'on top of the world'],
-    'feeling_bad': ["I feel bad", "I'm sad", 'feeling down', 'depressed', 'unhappy', 'miserable', 'gloomy', 'anxious'],
-    'stress': ['stressed', 'overwhelmed', 'under pressure', 'burnout', 'can\'t cope', 'too much to handle'],
-    'sleep_issues': ['can\'t sleep', 'insomnia', 'trouble sleeping', 'wake up tired', 'nightmares', 'sleep problems'],
-    'relationship': ['relationship problems', 'breakup', 'divorce', 'family issues', 'friend trouble', 'loneliness'],
-    'work': ['job stress', 'career change', 'workplace issues', 'unemployment', 'work-life balance'],
-    'health': ['health concerns', 'illness', 'chronic pain', 'disability', 'medical anxiety'],
-    'self_improvement': ['want to improve', 'self-development', 'personal growth', 'learning', 'new skills'],
-    'meditation': ['how to meditate', 'mindfulness', 'relaxation techniques', 'calm my mind'],
-    'exercise': ['workout routine', 'stay fit', 'exercise motivation', 'physical activity'],
-    'nutrition': ['healthy eating', 'diet advice', 'nutritional information', 'food and mood'],
-    'motivation': ['lack motivation', 'how to stay motivated', 'setting goals', 'achieving objectives'],
-    'anger': ['anger management', 'feeling frustrated', 'how to control temper', 'dealing with rage'],
-    'anxiety': ['feeling anxious', 'panic attacks', 'social anxiety', 'worry too much'],
-    'depression': ['dealing with depression', 'feeling hopeless', 'loss of interest', 'persistent sadness'],
-    'ai_companion': ['AI friend', 'talk to AI', 'SereniAI features', 'AI support', 'how can AI help me'],
-    'community_support': ['join community', 'support groups', 'connect with others', 'share experiences', 'community features'],
-    'journaling': ['personal journal', 'how to journal', 'reflection techniques', 'track progress', 'journal features'],
-    'mood_boosting_activities': ['fun activities', 'games for mood', 'mood improvement', 'feel better activities', 'uplift spirits'],
-    'blog_posts': ['read blogs', 'inspiring articles', 'write a blog', 'motivational content', 'positive reading'],
-    'daily_inspiration': ['daily quotes', 'morning motivation', 'inspirational messages', 'positive reminders', 'daily encouragement'],
-    'platform_info': ['SereniMind features', 'what services do you offer', 'how can SereniMind help me', 'tell me about SereniMind', 'what is SereniMind'],
-    'question': ['can you explain','why','what','how'],
-        'self_care': [
-        'how to take care of myself', 'self-care tips', 'self-love advice', 
-        'prioritize my wellbeing', 'better self-care habits', 'take a break'
+    "greeting": [
+    "hello", "hi", "hey", "good morning", "good afternoon", "good evening", "hi there", "hello there", 
+    "greetings", "how are you","how are you doing", "nice to meet you", "pleasure to meet you", "good day", "morning", 
+    "evening", "howdy", "hey there", "hiya", "what's up", "sup", "yo", "welcome", "yo", "sup", "wassup", "wazzup", "whassup", "what up", "howdy", "hey yo", "yo yo",
+    "how far", "how far na", "wetin dey", "wosop", "wasop", "wossop", "wazaa", "wazzaa",
+    "hai", "hei", "heey", "heyy", "heyyy", "hiiii", "hiii", "hii", "henlo", "hewwo",
+    "ello", "elo", "eyy", "ayy", "ayyy", "ayyyy", "aye", "ay", "heyo", "hellooo",
+    "heluu", "helu", "halla", "hola", "ohai", "ohayo", "oi", "oy", "yooo", "yoo",
+    "what's good", "whatsgood", "wuts good", "wusgood", "wassgood", "whats gud",
+    "what's crackin", "whatcha up to", "whatchu up to", "wyd", "wyd?", "sup wit u",
+    "what's popping", "what's poppin", "wuts poppin", "wassup wit u", "how u",
+    "what's the word", "word up", "what it do", "what it is", "what's the deal",
+    "what's the business", "what's the move", "what's the scene", "what's the vibe",
+    "what's the story", "what's the latest", "what's cooking", "what's brewing",
+    "wagwan", "wag1", "wasgood", "wassgud", "wass gud", "wass good", "waga", 
+    "what gwaan", "whagwan", "wagwaan", "weh yuh deh pon", "yuh good",
+    "g'day", "hiya", "heya", "hy", "hi", "hey", "lo", "hlo", "hullo", "ello m8",
+    "hey m8", "hi m8", "sup m8", "yo m8", "oi m8", "ey", "eyyy", "eh",
+    "what's cooking good looking", "hey stranger", "hey buddy", "hey bud", "hey pal",
+    "hey homie", "hey fam", "hey bruh", "hey bruv", "hey bro", "hey sis", "hey girl",
+    "hey dude", "hey mate", "hey chief", "hey boss", "hey fella", "hey hun",
+    "hmu", "slide thru", "pull up", "check in", "check it", "ping me", "hit me up",
+    "drop in", "roll thru", "pop in", "link up", "pull thru", "reach",
+    "howdy doody", "hihi", "heyhey", "yoyo", "helloooo", "hiyaa", "heyaa",
+    "herro", "harro", "wassuuup", "wassaaaap", "whaddup", "whaddap", "whatitdo",
+    "yo like", "hey like", "sup like", "ey yo", "ay yo", "eh yo", "aye yo",
+    "yo fam", "hey fam", "sup fam", "ey fam", "ay fam", "eh fam", "aye fam",
+    "henlo frend", "hewwo", "hai there", "herrow", "haiii", "haii", "ohaii",
+    "ohai there", "haay", "haaay", "haaaay", "heeeey", "yoohoo", "yahoo",
+    "helo", "helllo", "hallo", "hullo", "heylo", "heloo", "hellooo", "helou",
+    "helu", "heyu", "heyo", "hiya", "hiyo", "hihi", "hiii", "hiiiii",
+    "wasabi", "que pasa", "que tal", "que onda", "konichiwa", "ohayo", "annyeong",
+    "nihao", "ciao", "aloha", "bonjour", "hola", "namaste", "salaam",
+    "what's crackalackin", "what's poppin", "what's cracking", "what's jumping",
+    "what's shaking", "what's cooking", "what's happening", "what's new",
+    "glhf", "o/", "hey all", "hi all", "greets", "hai all", "hoi", "hoiii",
+    "heyo all", "hey peeps", "hi peeps", "greetings peeps", "yello", "yellow",
+    "how you living", "how you doing", "how u doin", "how r u", "how r ya",
+    "how ya doin", "howre you", "how're ya", "how u livin", "how u living",
+    "peek a boo", "knock knock", "guess who", "look who's here", "surprise",
+    "boom", "bam", "pow", "zing", "zoom", "whoosh", "tadaa", "ta-da",
+    "uwu", "owo", "^_^", ":3", "^-^", "^.^", ":D", "xD", "XD", ":P",
+    "sksksk", "periodt", "period", "purr", "bestie", "besties", "bestieee",
+    "girlie", "girlyyy", "queeen", "slayyy", "yas", "yaaas", "yassss",
+    "tbh", "ngl", "fr", "frfr", "ong", "istg", "iykyk", "fax", "no cap",
+    "cap", "bet", "say less", "word", "facts", "fr tho", "ong tho",
+    "yeet", "sheesh", "sheeesh", "oop", "oop-", "bruh", "bruhhh", "brooo",
+    "duuude", "dudee", "mateee", "famm", "fammm", "homieee", "yurrr", "yurr",
+    "morning sunshine", "rise and shine", "top of the morning", "early morning greetings", 
+    "dawn greetings", "sunrise hello", "morning blessings", "blessed morning", "bright morning",
+    "fresh morning", "beautiful morning", "wonderful morning", "happy morning", "joyous morning",
+    "peaceful morning", "lovely morning", "pleasant morning", "glorious morning", "splendid morning",
+    "magnificent morning", "marvelous morning", "delightful morning", "cheerful morning",
+    "good morning sunshine", "morning joy", "morning bliss", "morning cheer", "morning light",
+    "morning glory", "morning star", "morning blessing", "morning wishes", "morning greetings",
+    "afternoon delight", "good day to you", "pleasant afternoon", "wonderful afternoon",
+    "beautiful afternoon", "lovely afternoon", "peaceful afternoon", "joyous afternoon",
+    "splendid afternoon", "magnificent afternoon", "marvelous afternoon", "delightful afternoon",
+    "cheerful afternoon", "afternoon joy", "afternoon bliss", "afternoon cheer", "afternoon light",
+    "afternoon blessing", "afternoon wishes", "afternoon greetings", "midday greetings",
+    "sunny afternoon", "bright afternoon", "warm afternoon", "gentle afternoon",
+    "evening blessings", "pleasant evening", "wonderful evening", "beautiful evening",
+    "peaceful evening", "joyous evening", "splendid evening", "magnificent evening",
+    "marvelous evening", "delightful evening", "cheerful evening", "evening joy",
+    "evening bliss", "evening cheer", "evening light", "evening star", "evening blessing",
+    "evening wishes", "evening greetings", "starry evening", "moonlit evening", "twilight greetings",
+    "dusk greetings", "sunset hello", "nightfall greetings", "midnight greetings",
+    "greetings and salutations", "pleased to make your acquaintance", "how do you do",
+    "it's a pleasure", "delighted to meet you", "welcome to you", "good day to you sir",
+    "good day to you madam", "esteemed greetings", "cordial greetings", "formal salutations",
+    "proper greetings", "distinguished greetings", "respectful greetings", "honored to meet you",
+    "pleasure to meet your acquaintance", "at your service", "good day to you all",
+    "greetings to you", "salutations to all", "formal welcome", "proper welcome",
+    "distinguished welcome", "respectful welcome", "honored welcome",
+    "hey buddy", "what's happening", "what's new", "how goes it", "how's it hanging",
+    "how's tricks", "what's cooking", "what's the word", "what's good", "what's up doc",
+    "howdy partner", "how ya doing", "how you doing", "how's life", "how's everything",
+    "wassup", "sup buddy", "yo yo", "heya", "hiya pal", "hi friend", "hey friend",
+    "hey there friend", "hi there pal", "hey there buddy", "what's the story",
+    "what's cracking", "what's popping", "what's cooking good looking",
+    "welcome aboard", "welcome back", "welcome home", "glad to have you", "nice to have you here",
+    "great to see you", "good to have you", "pleased to have you", "delighted to have you",
+    "wonderful to have you", "welcome to the family", "welcome to the team", "welcome to the group",
+    "welcome to the community", "welcome to our home", "welcome to our place", "welcome in",
+    "please come in", "do come in", "make yourself at home", "welcome welcome",
+    "bonjour", "hola", "ciao", "namaste", "aloha", "guten tag", "konnichiwa", "shalom",
+    "salaam", "ni hao", "annyeong", "sawadee", "merhaba", "zdravstvuyte", "buenos dias",
+    "bom dia", "god dag", "dobry den", "kalimera", "selamat pagi", "xin chao", "vanakkam",
+    "namaskar", "assalamu alaikum", "salam", "dia dhuit", "tere", "hej", "hallo", "privet",
+    "lovely to see you", "wonderful to see you", "delighted to see you", "pleased to see you",
+    "happy to see you", "glad to see you again", "great to see you again", "nice to see you again",
+    "wonderful to see you again", "delighted to see you again", "pleased to see you again",
+    "happy to see you again", "good to see you again", "lovely to see you again",
+    "marvelous to see you again", "splendid to see you again", "fantastic to see you again",
+    "how have you been", "how's your day", "how's your day going", "how's your morning",
+    "how's your afternoon", "how's your evening", "how's everything going", "how are things",
+    "how's life treating you", "how have things been", "how's it all going", "how are you doing",
+    "how are you feeling", "how's your world", "how's your week been", "how's your day been",
+    "how are you today", "how are you this morning", "how are you this afternoon",
+    "how are you this evening", "how's your life", "how's your family", "how's work",
+    "how's your health", "how's your mood",
+    "hello!", "hi!", "hey!", "greetings!", "welcome!", "good morning!", "good afternoon!",
+    "good evening!", "howdy!", "hiya!", "heya!", "what's up!", "yo!", "hey there!",
+    "hi there!", "hello there!", "greetings and salutations!", "welcome aboard!",
+    "welcome back!", "welcome home!", "great to see you!", "lovely to see you!",
+    "wonderful to see you!", "delighted to see you!", "pleased to see you!",
+    "g'day", "ey up", "hiya love", "how you going", "how ya going", "kia ora", "guid mornin",
+    "top o' the morning", "howdy y'all", "hey youse", "hey you lot", "alright mate",
+    "right mate", "hiya mate", "hey mate", "g'day mate", "oi mate", "hey folks",
+    "hi everyone", "hello everybody", "greetings everyone", "hey everyone", "hi everybody",
+    "back again", "returned", "i'm back", "hello again", "hi again", "hey again",
+    "good morning again", "good afternoon again", "good evening again", "here again",
+    "returned again", "back once more", "here once more", "hello once more",
+    "hi once more", "hey once more", "greetings once more", "welcome back again",
+    "blessed morning to you", "wonderful day to you", "beautiful evening to you",
+    "peaceful morning to you", "joyous day to you", "bright morning to you",
+    "sunny day to you", "starry evening to you", "lovely morning to you",
+    "pleasant day to you", "delightful evening to you", "cheerful morning to you",
+    "happy day to you", "blessed evening to you", "wonderful morning to you",
+    "beautiful day to you", "peaceful evening to you", "joyous morning to you",
+    "hope you're doing well", "hope you're well", "hope all is well", "trust you're well",
+    "trust all is well", "hope you're having a good day", "hope you're having a great day",
+    "hope you're having a wonderful day", "hope you're having a beautiful day",
+    "hope you're having a blessed day", "hope you're having a peaceful day",
+    "hope you're having a joyous day", "hope you're having a bright day",
+    "hope you're having a lovely day", "hope you're having a pleasant day",
+    "nice day isn't it", "beautiful day isn't it", "lovely weather we're having",
+    "great day for it", "perfect day for it", "wonderful weather we're having",
+    "nice weather we're having", "beautiful weather isn't it", "lovely day for it",
+    "perfect weather isn't it", "great weather we're having", "wonderful day isn't it",
+    "spring greetings", "summer greetings", "autumn greetings", "winter greetings",
+    "seasonal greetings", "spring hello", "summer hello", "autumn hello", "winter hello",
+    "springtime greetings", "summertime greetings", "autumn wishes", "winter wishes",
+    "spring wishes", "summer wishes",
+    "sunny greetings", "rainy day greetings", "snowy greetings", "cloudy day hello",
+    "stormy weather greetings", "foggy morning hello", "misty morning greetings",
+    "warm weather hello", "cold weather greetings", "windy day hello", "frosty morning greetings",
+    "hot day greetings", "chilly morning hello",
+    "greetings colleagues", "morning team", "hello everyone", "good morning all",
+    "greetings all", "welcome everyone", "hello team", "morning everyone",
+    "good morning team", "greetings team", "welcome team", "hello colleagues",
+    "morning colleagues", "good morning colleagues", "greetings staff",
+    "namaste ji", "as-salaam-alaikum", "shalom aleichem", "konbanwa", "ohayou gozaimasu",
+    "annyeong haseyo", "ni hao ma", "xin chao ban", "sawadee krap", "sawadee ka",
+    "buenos tardes", "buenos noches", "bonsoir", "buongiorno", "buonasera",
+    "fair morning to you", "fair day to you", "fair evening to you", "good morrow",
+    "well met", "hail and well met", "hail friend", "well met friend", "good morrow to you",
+    "fair greetings", "gentle greetings", "kind greetings", "fair tidings",
+    "hey fam", "sup fam", "hey squad", "hi squad", "hey crew", "hi crew",
+    "squad up", "crew check", "fam check", "gang's all here", "hey everyone",
+    "squad goals", "crew love", "fam first", "hey peeps", "hi peeps",
+    "greetings of the day", "time of day greetings", "daily greetings",
+    "friendly greetings", "warm greetings", "kind greetings", "gentle greetings",
+    "cheerful greetings", "happy greetings", "joyful greetings", "peaceful greetings",
+    "blessed greetings", "wonderful greetings", "beautiful greetings", "lovely greetings",
+    "pleasant greetings", "delightful greetings", "marvelous greetings",
+    "splendid greetings", "magnificent greetings", "glorious greetings"
+  ],
+    "farewell": [
+        "goodbye", "bye", "talk later", "need to go",
+        "thanks for chat", "until next time", "good night",
+        "take care", "see you", "bye for now"
     ],
-    'gratitude': [
-        'how to practice gratitude', 'feeling grateful', 'thankfulness', 
-        'gratefulness exercises', 'gratitude journal'
+    "General_Anxiety_Assessment": [
+        "how anxious am i", "evaluate my anxiety", "is this anxiety normal",
+        "anxiety level check", "do i have anxiety", "anxiety self assessment",
+        "rate my anxiety symptoms", "anxiety severity check", "analyze my anxiety",
+        "anxiety evaluation request", "check anxiety levels", "anxiety test needed",
+        "assess my mental state", "anxiety diagnosis help", "measure anxiety severity",
+        "anxiety screening request", "evaluate stress levels", "anxiety check please",
+        "understand my anxiety", "anxiety assessment needed", "anxiety quiz request",
+        "gauge my anxiety", "anxiety level measurement", "analyze stress symptoms",
+        "check if i have anxiety", "anxiety scale assessment", "review my symptoms",
+        "anxiety evaluation needed", "mental health check", "anxiety analysis request",
+        "validate my anxiety", "anxiety level test", "am i experiencing anxiety",
+        "assess panic symptoms", "anxiety disorder check", "evaluate mental state",
+        "anxiety score needed", "check anxiety severity", "anxiety assessment tools",
+        "anxiety level monitor", "review anxiety patterns", "anxiety check up",
+        "anxiety self evaluation", "mental wellness check", "anxiety level analysis",
+        "assess anxiety condition", "anxiety rating request", "evaluate symptoms",
+        "anxiety screening test", "check anxiety status", "anxiety measurement help",
+        "anxiety level indicator", "assess mental health", "anxiety evaluation report",
+        "anxiety symptoms check", "anxiety assessment form", "gauge stress levels",
+        "anxiety level reading", "mental state analysis", "anxiety evaluation help",
+        "assess anxiety type", "anxiety pattern check", "evaluate anxiety state",
+        "anxiety level gauge", "anxiety screening help", "mental health assessment",
+        "anxiety condition check", "evaluate anxiety impact", "anxiety severity test",
+        "anxiety level review", "mental wellness assessment", "anxiety check report",
+        "assess anxiety impact", "anxiety rating scale", "evaluate anxiety symptoms",
+        "anxiety level status", "anxiety screening results", "mental health review",
+        "anxiety condition test", "evaluate anxiety levels", "anxiety severity check",
+        "anxiety level evaluation", "mental state check", "anxiety test results",
+        "assess anxiety severity", "anxiety rating check", "evaluate anxiety state",
+        "anxiety level analysis", "anxiety screening status", "mental health gauge",
+        "anxiety condition review", "evaluate anxiety patterns", "anxiety test help",
+        "anxiety level report", "mental state evaluation", "anxiety check status",
+        "assess anxiety patterns", "anxiety rating review", "evaluate anxiety type",
+        "anxiety level status", "anxiety screening check", "mental health monitor",
+        "anxiety condition gauge", "evaluate anxiety severity", "anxiety test update",
+        "anxiety level check up", "mental state assessment", "anxiety review needed",
+        "assess anxiety state", "anxiety rating status", "evaluate anxiety impact",
+        "anxiety level monitor", "anxiety screening review", "mental health status",
+        "anxiety condition status", "evaluate anxiety condition", "anxiety test check"
     ],
-    'goal_setting': [
-        'how to set goals', 'goal-setting tips', 'personal goals', 
-        'achieving my dreams', 'stay on track with goals'
+    "Triggers_and_Causes": [
+        "what triggers my anxiety", "anxiety cause identification", "why am i anxious",
+        "anxiety trigger patterns", "common anxiety causes", "identify anxiety triggers",
+        "what makes me anxious", "anxiety source analysis", "trigger recognition help",
+        "anxiety cause assessment", "find anxiety triggers", "why do i feel anxious",
+        "anxiety trigger tracking", "understanding anxiety causes", "identify stress triggers",
+        "anxiety source check", "what starts my anxiety", "trigger identification help",
+        "anxiety cause tracking", "recognize anxiety patterns", "what triggers panic",
+        "anxiety factor analysis", "understand my triggers", "cause identification help",
+        "anxiety trigger list", "what causes my stress", "trigger pattern recognition",
+        "anxiety source tracking", "identify panic triggers", "what makes anxiety worse",
+        "anxiety cause patterns", "understand trigger factors", "anxiety origin help",
+        "trigger source check", "what causes anxiety attacks", "anxiety factor tracking",
+        "identify stress sources", "what triggers panic attacks", "anxiety cause recognition",
+        "understand my stressors", "trigger analysis help", "anxiety source patterns",
+        "identify anxiety sources", "what causes my panic", "anxiety trigger assessment",
+        "understand stress factors", "cause tracking help", "anxiety pattern recognition",
+        "identify trigger patterns", "what makes me panic", "anxiety source identification",
+        "understand anxiety factors", "trigger evaluation help", "anxiety cause tracking",
+        "identify anxiety patterns", "what causes my attacks", "anxiety trigger recognition",
+        "understand panic sources", "cause analysis help", "anxiety factor patterns",
+        "identify stress patterns", "what triggers my attacks", "anxiety source evaluation",
+        "understand trigger sources", "cause identification support", "anxiety pattern tracking",
+        "identify panic sources", "what makes me stressed", "anxiety trigger analysis",
+        "understand stress sources", "cause recognition help", "anxiety factor tracking",
+        "identify trigger sources", "what causes my stress", "anxiety source recognition",
+        "understand anxiety sources", "trigger pattern help", "anxiety cause analysis",
+        "identify stress triggers", "what makes me anxious", "anxiety trigger evaluation",
+        "understand panic triggers", "cause tracking support", "anxiety factor recognition",
+        "identify anxiety factors", "what triggers my stress", "anxiety source patterns",
+        "understand trigger patterns", "cause analysis support", "anxiety pattern analysis",
+        "identify panic patterns", "what causes my anxiety", "anxiety trigger tracking",
+        "understand stress patterns", "trigger recognition support", "anxiety factor evaluation",
+        "identify trigger patterns", "what makes me panic", "anxiety source analysis",
+        "understand anxiety patterns", "cause pattern help", "anxiety trigger recognition",
+        "identify stress factors", "what triggers my panic", "anxiety cause patterns",
+        "understand trigger factors", "pattern analysis help", "anxiety factor tracking",
+        "identify panic factors", "what causes my attacks", "anxiety source evaluation",
+        "understand stress factors", "trigger tracking support", "anxiety pattern recognition"
     ],
-    'self_confidence': [
-        'boost my confidence', 'improve self-esteem', 'feeling insecure', 
-        'confidence tips', 'self-worth advice', 'how to feel better about myself'
+    "Physical_Symptoms": [
+        "physical anxiety symptoms", "body anxiety signs", "anxiety physical effects",
+        "anxiety body symptoms", "physical stress signs", "anxiety manifestations",
+        "bodily anxiety symptoms", "physical anxiety signs", "anxiety body effects",
+        "physical stress symptoms", "anxiety physical signs", "body stress effects",
+        "physical manifestations", "anxiety body reactions", "physical stress signs",
+        "anxiety physical impact", "body reaction symptoms", "physical anxiety effects",
+        "anxiety somatic signs", "physical stress impact", "body anxiety reactions",
+        "physical symptom check", "anxiety body signs", "physical stress effects",
+        "anxiety physical signs", "body manifestations", "physical anxiety reactions",
+        "anxiety somatic symptoms", "physical stress signs", "body anxiety effects",
+        "physical reaction check", "anxiety body symptoms", "physical stress symptoms",
+        "anxiety physical reactions", "body stress signs", "physical anxiety signs",
+        "anxiety manifestation check", "physical symptoms list", "anxiety body effects",
+        "physical stress reactions", "anxiety somatic signs", "body anxiety symptoms",
+        "physical reaction tracking", "anxiety physical signs", "body stress effects",
+        "physical symptom monitor", "anxiety manifestations", "physical anxiety symptoms",
+        "body reaction check", "anxiety somatic effects", "physical stress signs",
+        "anxiety body reactions", "physical symptom analysis", "anxiety physical effects",
+        "body manifestation check", "anxiety stress symptoms", "physical reaction signs",
+        "anxiety body signs", "physical symptom tracking", "anxiety manifestation effects",
+        "body reaction monitor", "anxiety physical symptoms", "physical stress reactions",
+        "anxiety somatic signs", "body symptom check", "physical anxiety effects",
+        "anxiety manifestation signs", "body reaction tracking", "physical stress symptoms",
+        "anxiety physical reactions", "body symptom monitor", "anxiety somatic effects",
+        "physical manifestation check", "anxiety body symptoms", "physical reaction signs",
+        "anxiety stress effects", "body symptom tracking", "physical anxiety reactions",
+        "anxiety manifestation monitor", "physical stress signs", "body reaction effects",
+        "anxiety somatic symptoms", "physical symptom check", "anxiety body reactions",
+        "physical manifestation tracking", "anxiety stress signs", "body symptom effects",
+        "anxiety physical signs", "physical reaction monitor", "anxiety manifestation symptoms",
+        "body stress reactions", "physical symptom effects", "anxiety somatic signs",
+        "physical manifestation monitor", "anxiety body effects", "physical reaction tracking",
+        "anxiety stress symptoms", "body symptom signs", "physical anxiety manifestations",
+        "anxiety somatic reactions", "physical symptom signs", "anxiety body signs",
+        "physical manifestation effects", "anxiety stress reactions", "body symptom check",
+        "physical anxiety signs", "anxiety somatic effects", "physical reaction symptoms",
+        "anxiety manifestation signs", "body stress effects", "physical symptom reactions"
+    ], 
+    "Cognitive_Symptoms": [
+        "racing thoughts anxiety", "anxious thinking patterns", "overthinking problems",
+        "cant stop worrying", "anxiety thought loops", "mind wont quiet down",
+        "constant worry thoughts", "anxiety mental symptoms", "scattered thinking anxiety",
+        "negative thought patterns", "anxiety brain fog", "worried about everything",
+        "mental anxiety signs", "catastrophic thinking", "cant focus anxiety",
+        "anxiety thought patterns", "worrying too much", "mind racing anxiety",
+        "obsessive thoughts anxiety", "cant concentrate anxiety", "anxiety mental state",
+        "constant fear thoughts", "anxiety thinking problems", "mental clarity issues",
+        "anxious mind symptoms", "thought spiral anxiety", "worry cycle help",
+        "anxiety brain symptoms", "thinking problems anxiety", "mental focus issues",
+        "anxiety concentration", "worried thinking patterns", "mind block anxiety",
+        "thought process issues", "anxiety mental focus", "cognitive anxiety signs",
+        "racing mind problems", "anxiety thought blocking", "mental stress symptoms",
+        "constant anxiety thoughts", "cognitive thought patterns", "mind racing issues",
+        "anxiety brain function", "worried mental state", "thought processing anxiety",
+        "mental anxiety patterns", "cognitive stress signs", "racing thoughts help",
+        "anxiety thinking issues", "worried thought cycles", "mind anxiety symptoms",
+        "cognitive function anxiety", "mental processing issues", "anxiety thought help",
+        "worried brain symptoms", "mind block issues", "anxiety cognitive signs",
+        "mental clarity anxiety", "thought pattern help", "racing mind anxiety",
+        "cognitive anxiety help", "worried thinking issues", "mind processing anxiety",
+        "anxiety mental symptoms", "thought blocking help", "racing thoughts patterns",
+        "cognitive issues anxiety", "worried brain function", "mind clarity anxiety",
+        "anxiety processing issues", "thought anxiety help", "racing mind symptoms",
+        "cognitive anxiety patterns", "worried mental function", "mind block symptoms",
+        "anxiety thinking help", "thought processing issues", "racing brain patterns",
+        "cognitive thought issues", "worried processing help", "mind anxiety patterns",
+        "anxiety mental function", "thought clarity issues", "racing thoughts help",
+        "cognitive processing anxiety", "worried thought patterns", "mind racing help",
+        "anxiety brain patterns", "thought blocking anxiety", "racing mind issues",
+        "cognitive anxiety symptoms", "worried thinking help", "mind processing issues",
+        "anxiety mental patterns", "thought anxiety patterns", "racing brain help",
+        "cognitive thought help", "worried brain patterns", "mind clarity issues",
+        "anxiety processing help", "thought racing anxiety", "mental anxiety help",
+        "cognitive function issues", "worried processing patterns", "mind block help",
+        "anxiety thinking patterns", "thought clarity anxiety", "racing thoughts issues",
+        "cognitive processing help", "worried mental patterns", "mind racing patterns"
     ],
-    'productivity': [
-        'how to stay productive', 'boost my productivity', 'productivity hacks', 
-        'overcome procrastination', 'time management tips'
+    "Behavioral_Responses": [
+        "avoiding situations anxiety", "anxiety coping behaviors", "nervous habits anxiety",
+        "anxiety avoidance patterns", "stress reaction behaviors", "anxiety responses help",
+        "panic behavior patterns", "anxiety reaction types", "stress response habits",
+        "anxious behavior help", "panic response patterns", "anxiety habits check",
+        "stress behavior types", "anxiety response analysis", "panic habits review",
+        "avoiding people anxiety", "stress reaction patterns", "anxiety behavior check",
+        "panic response types", "anxiety habits analysis", "stress behavior review",
+        "anxious avoidance help", "panic reaction patterns", "anxiety response check",
+        "stress habits analysis", "anxiety behavior review", "panic avoidance patterns",
+        "stress response types", "anxiety habits check", "panic behavior analysis",
+        "anxious reaction help", "stress avoidance patterns", "anxiety response review",
+        "panic habits check", "anxiety behavior analysis", "stress reaction types",
+        "anxious avoidance patterns", "panic response review", "anxiety habits help",
+        "stress behavior patterns", "anxiety reaction analysis", "panic avoidance check",
+        "stress response review", "anxiety behavior help", "panic reaction types",
+        "anxious habits patterns", "stress avoidance analysis", "anxiety response types",
+        "panic behavior review", "stress reaction check", "anxiety avoidance help",
+        "panic habits patterns", "anxious response analysis", "stress behavior help",
+        "anxiety reaction review", "panic avoidance types", "stress response patterns",
+        "anxious behavior types", "panic reaction analysis", "anxiety habits review",
+        "stress avoidance check", "anxiety response help", "panic behavior help",
+        "anxious reaction patterns", "stress habits types", "anxiety avoidance analysis",
+        "panic response help", "stress behavior types", "anxiety reaction check",
+        "anxious habits help", "panic avoidance review", "stress response analysis",
+        "anxiety behavior patterns", "panic reaction help", "anxious response types",
+        "stress habits patterns", "anxiety avoidance review", "panic behavior types",
+        "stress reaction analysis", "anxiety habits help", "anxious avoidance check",
+        "panic response patterns", "stress behavior review", "anxiety reaction types",
+        "anxious habits analysis", "panic avoidance help", "stress response check",
+        "anxiety behavior review", "panic reaction patterns", "anxious response help",
+        "stress habits analysis", "anxiety avoidance types", "panic behavior check",
+        "stress reaction review", "anxiety habits patterns", "anxious avoidance analysis",
+        "panic response types", "stress behavior help", "anxiety reaction help",
+        "anxious habits review", "panic avoidance analysis", "stress response types",
+        "anxiety behavior check", "panic reaction review", "anxious response patterns",
+        "stress habits help", "anxiety avoidance patterns", "panic behavior analysis"
     ],
-    'grief': [
-        'dealing with loss', 'coping with grief', 'lost a loved one', 
-        'how to move on', 'feeling empty'
+    "Coping_Mechanisms": [
+        "anxiety coping strategies", "ways to handle anxiety", "anxiety management tips",
+        "coping with panic attacks", "anxiety relief methods", "stress management techniques",
+        "anxiety coping tools", "ways to calm anxiety", "anxiety control strategies",
+        "managing panic symptoms", "anxiety reduction tips", "stress relief techniques",
+        "anxiety handling methods", "ways to reduce anxiety", "panic management strategies",
+        "coping with stress", "anxiety calming tips", "stress control techniques",
+        "anxiety management tools", "ways to manage anxiety", "panic relief strategies",
+        "coping with symptoms", "anxiety reduction methods", "stress handling tips",
+        "anxiety relief tools", "ways to cope anxiety", "panic control techniques",
+        "managing anxiety symptoms", "stress reduction strategies", "anxiety handling tips",
+        "coping techniques anxiety", "ways to handle stress", "panic management methods",
+        "anxiety control tools", "stress relief strategies", "anxiety calming techniques",
+        "managing panic attacks", "ways to reduce stress", "anxiety relief tips",
+        "coping with symptoms", "stress management tools", "panic reduction techniques",
+        "anxiety handling strategies", "ways to calm down", "stress control methods",
+        "managing anxiety attacks", "panic relief tips", "anxiety reduction tools",
+        "coping strategies stress", "ways to handle panic", "anxiety management methods",
+        "stress calming techniques", "panic control tips", "anxiety relief strategies",
+        "managing symptoms", "ways to manage stress", "anxiety handling tools",
+        "coping with attacks", "stress reduction methods", "panic management tips",
+        "anxiety control techniques", "ways to cope stress", "anxiety calming strategies",
+        "managing stress levels", "panic relief tools", "anxiety reduction methods",
+        "coping techniques stress", "ways to handle symptoms", "anxiety management tips",
+        "stress control strategies", "panic reduction tools", "anxiety handling techniques",
+        "managing anxiety levels", "ways to calm stress", "anxiety relief methods",
+        "coping strategies panic", "stress management tips", "anxiety control tools",
+        "managing symptoms", "ways to reduce panic", "anxiety calming methods",
+        "coping with levels", "panic relief strategies", "stress reduction tools",
+        "anxiety handling tips", "ways to manage symptoms", "anxiety management techniques",
+        "managing stress", "panic control methods", "anxiety reduction strategies",
+        "coping techniques panic", "ways to handle levels", "stress calming tools",
+        "anxiety relief tips", "managing anxiety", "panic management techniques",
+        "anxiety control methods", "ways to cope symptoms", "stress handling strategies",
+        "coping strategies symptoms", "anxiety calming tools", "panic reduction methods",
+        "managing levels", "ways to manage panic", "stress relief tips",
+        "anxiety handling techniques", "coping with anxiety", "panic control strategies"
     ],
-    'self_discovery': [
-        'find my purpose', 'discover who I am', 'personal identity', 
-        'understand myself better', 'self-discovery journey'
+    "Emotional_Responses": [
+        "feeling anxious emotions", "emotional anxiety response", "anxiety emotional impact",
+        "emotional stress reaction", "anxiety feelings help", "emotional anxiety signs",
+        "anxiety emotional symptoms", "feeling stressed emotions", "anxiety emotional state",
+        "emotional anxiety impact", "feeling overwhelmed help", "anxiety emotional reaction",
+        "emotional stress response", "anxiety feelings check", "emotional anxiety symptoms",
+        "feeling anxious help", "anxiety emotional signs", "emotional stress impact",
+        "anxiety feelings state", "emotional anxiety reaction", "feeling stressed help",
+        "anxiety emotional check", "emotional stress signs", "anxiety feelings impact",
+        "emotional anxiety state", "feeling overwhelmed signs", "anxiety emotional symptoms",
+        "emotional stress reaction", "anxiety feelings signs", "emotional anxiety impact",
+        "feeling anxious state", "anxiety emotional response", "emotional stress symptoms",
+        "anxiety feelings reaction", "emotional anxiety signs", "feeling stressed state",
+        "anxiety emotional help", "emotional stress impact", "anxiety feelings symptoms",
+        "emotional anxiety reaction", "feeling overwhelmed response", "anxiety emotional signs",
+        "emotional stress state", "anxiety feelings help", "emotional anxiety symptoms",
+        "feeling anxious impact", "anxiety emotional reaction", "emotional stress signs",
+        "anxiety feelings state", "emotional anxiety help", "feeling stressed impact",
+        "anxiety emotional symptoms", "emotional stress reaction", "anxiety feelings signs",
+        "emotional anxiety state", "feeling overwhelmed impact", "anxiety emotional response",
+        "emotional stress symptoms", "anxiety feelings reaction", "emotional anxiety signs",
+        "feeling anxious symptoms", "anxiety emotional impact", "emotional stress help",
+        "anxiety feelings response", "emotional anxiety reaction", "feeling stressed symptoms",
+        "anxiety emotional state", "emotional stress signs", "anxiety feelings impact",
+        "emotional anxiety help", "feeling overwhelmed state", "anxiety emotional signs",
+        "emotional stress reaction", "anxiety feelings symptoms", "emotional anxiety impact",
+        "feeling anxious signs", "anxiety emotional response", "emotional stress state",
+        "anxiety feelings help", "emotional anxiety signs", "feeling stressed reaction",
+        "anxiety emotional symptoms", "emotional stress impact", "anxiety feelings state",
+        "emotional anxiety response", "feeling overwhelmed symptoms", "anxiety emotional reaction",
+        "emotional stress signs", "anxiety feelings impact", "emotional anxiety state",
+        "feeling anxious reaction", "anxiety emotional help", "emotional stress response",
+        "anxiety feelings signs", "emotional anxiety impact", "feeling stressed help",
+        "anxiety emotional state", "emotional stress symptoms", "anxiety feelings response"
     ],
-    'mindfulness': [
-        'how to be mindful', 'mindfulness exercises', 'stay present', 
-        'mindfulness for beginners', 'focus on the now'
+    "Social_Impact": [
+        "anxiety social effects", "social anxiety impact", "anxiety relationship effects",
+        "social interaction anxiety", "anxiety friendship impact", "social situation anxiety",
+        "anxiety communication effects", "social anxiety help", "anxiety social problems",
+        "social relationship anxiety", "anxiety friendship issues", "social anxiety effects",
+        "anxiety interaction problems", "social communication anxiety", "anxiety social issues",
+        "social relationship effects", "anxiety friendship help", "social anxiety problems",
+        "anxiety interaction issues", "social communication effects", "anxiety social help",
+        "social relationship problems", "anxiety friendship effects", "social anxiety issues",
+        "anxiety interaction help", "social communication problems", "anxiety social effects",
+        "social relationship issues", "anxiety friendship problems", "social anxiety help",
+        "anxiety interaction effects", "social communication issues", "anxiety social problems",
+        "social relationship help", "anxiety friendship issues", "social anxiety effects",
+        "anxiety interaction problems", "social communication help", "anxiety social issues",
+        "social relationship effects", "anxiety friendship help", "social anxiety problems",
+        "anxiety interaction issues", "social communication effects", "anxiety social help",
+        "social relationship problems", "anxiety friendship effects", "social anxiety issues",
+        "anxiety interaction help", "social communication problems", "anxiety social effects",
+        "social relationship issues", "anxiety friendship problems", "social anxiety help",
+        "anxiety interaction effects", "social communication issues", "anxiety social problems",
+        "social relationship help", "anxiety friendship issues", "social anxiety effects",
+        "anxiety interaction problems", "social communication help", "anxiety social issues",
+        "social relationship effects", "anxiety friendship help", "social anxiety problems",
+        "anxiety interaction issues", "social communication effects", "anxiety social help",
+        "social relationship problems", "anxiety friendship effects", "social anxiety issues",
+        "anxiety interaction help", "social communication problems", "anxiety social effects",
+        "social relationship issues", "anxiety friendship problems", "social anxiety help",
+        "anxiety interaction effects", "social communication issues", "anxiety social problems",
+        "social relationship help", "anxiety friendship issues", "social anxiety effects",
+        "anxiety interaction problems", "social communication help", "anxiety social issues",
+        "social relationship effects", "anxiety friendship help", "social anxiety problems",
+        "anxiety interaction issues", "social communication effects", "anxiety social help",
+        "social relationship problems", "anxiety friendship effects", "social anxiety issues",
+        "anxiety interaction help", "social communication problems", "anxiety social effects"
     ],
-    'coping_strategies': [
-        'how to cope', 'stress coping mechanisms', 'ways to cope with emotions', 
-        'healthy coping strategies', 'dealing with tough times'
+    "Work_Study_Impact": [
+        "anxiety at work", "study anxiety problems", "work performance anxiety",
+        "anxiety affecting studies", "work stress impact", "study concentration anxiety",
+        "anxiety job performance", "academic anxiety issues", "work anxiety effects",
+        "study stress problems", "anxiety career impact", "academic performance anxiety",
+        "work concentration issues", "anxiety study effects", "job stress problems",
+        "anxiety academic impact", "work anxiety issues", "study performance problems",
+        "anxiety job effects", "academic stress impact", "work performance issues",
+        "anxiety study problems", "job anxiety effects", "academic concentration issues",
+        "work stress effects", "anxiety academic problems", "job performance issues",
+        "study anxiety effects", "work concentration problems", "anxiety career effects",
+        "academic anxiety impact", "job stress effects", "work performance anxiety",
+        "study stress issues", "anxiety job impact", "academic performance problems",
+        "work anxiety effects", "study concentration issues", "anxiety career problems",
+        "academic stress effects", "job performance anxiety", "work study impact",
+        "anxiety academic effects", "study performance anxiety", "job concentration issues",
+        "work stress problems", "anxiety study impact", "academic anxiety effects",
+        "job stress issues", "work performance problems", "anxiety career impact",
+        "study anxiety issues", "academic concentration anxiety", "work job effects",
+        "anxiety study problems", "job performance impact", "academic stress issues",
+        "work concentration anxiety", "anxiety career effects", "study performance problems",
+        "job anxiety impact", "academic concentration issues", "work stress effects",
+        "anxiety study issues", "job performance problems", "academic anxiety impact",
+        "work concentration problems", "anxiety career issues", "study performance effects",
+        "job anxiety problems", "academic stress anxiety", "work study effects",
+        "anxiety academic issues", "job concentration problems", "study stress impact",
+        "work performance issues", "anxiety career effects", "academic anxiety problems",
+        "job stress anxiety", "study concentration effects", "work anxiety impact",
+        "anxiety job issues", "academic performance effects", "study stress problems",
+        "work career anxiety", "anxiety academic impact", "job performance effects",
+        "study concentration issues", "work anxiety problems", "academic stress effects",
+        "anxiety job impact", "study performance anxiety", "work concentration effects",
+        "academic anxiety issues", "job stress problems", "anxiety career impact",
+        "study anxiety effects", "work performance problems", "academic concentration anxiety"
     ],
-    'positive_thinking': [
-        'how to think positively', 'positive mindset tips', 'stop negative thoughts', 
-        'overcome negative thinking', 'maintain a positive outlook'
+    "Sleep_Patterns": [
+        "anxiety sleep problems", "cant sleep anxiety", "anxiety insomnia help",
+        "sleep anxiety issues", "anxiety nighttime problems", "sleep disturbance anxiety",
+        "anxiety sleeping patterns", "cant rest anxiety", "sleep anxiety symptoms",
+        "anxiety bedtime issues", "sleep problems anxiety", "anxiety rest patterns",
+        "insomnia anxiety help", "sleep disturbances", "anxiety sleep quality",
+        "nighttime anxiety issues", "sleep pattern problems", "anxiety sleep habits",
+        "cant fall asleep anxiety", "sleep anxiety patterns", "anxiety rest issues",
+        "insomnia from anxiety", "sleep quality problems", "anxiety bedtime patterns"
     ],
-    'relaxation': [
-        'how to relax', 'relaxation techniques', 'unwind after a long day', 
-        'calm down tips', 'destress methods'
-    ],
-    'financial_stress': [
-        'dealing with money issues', 'financial anxiety', 'money worries', 
-        'budgeting tips', 'financial stability advice'
-    ],
-    'forgiveness': [
-        'how to forgive', 'let go of grudges', 'forgiving others', 
-        'stop feeling resentful', 'release anger'
-    ],
-    'social_skills': [
-        'improve social skills', 'how to make friends', 'overcome shyness', 
-        'social confidence', 'talk to people better'
-    ],
-    'loneliness': [
-        'feeling lonely', 'how to stop feeling lonely', 'social isolation', 
-        'want to connect with others', 'coping with loneliness'
-    ],
-    'resilience': [
-        'how to be resilient', 'bounce back from challenges', 
-        'building resilience', 'stay strong in hard times'
-    ],
-    'acceptance': [
-        'how to accept myself', 'accepting reality', 'letting go of control', 
-        'embrace who I am', 'stop comparing myself'
-    ],
-    'creativity': [
-        'creative expression', 'art for therapy', 'ways to be creative', 
-        'creativity exercises', 'express myself creatively'
-    ],
-    'digital_detox': [
-        'take a break from social media', 'digital detox tips', 'reduce screen time', 
-        'disconnect from technology', 'unplug and relax'
-    ],
-    'assertiveness': [
-        'how to be assertive', 'speak up for myself', 'say no', 
-        'stand my ground', 'assertiveness tips'
-    ],
-    'boundaries': [
-        'how to set boundaries', 'healthy boundaries', 'protect my energy', 
-        'keep boundaries with people', 'boundary setting tips'
-    ],
-    'mental_health_info': [
-        'what is mental health', 'mental health resources', 
-        'learn about mental wellness', 'how to support mental health'
-    ],
-    'validation': [
-        'I want to feel understood', 'acknowledge my feelings', 'emotional validation', 
-        'feel like I matter', 'validate myself'
-    ],
-    'healing': [
-        'how to heal emotionally', 'healing process', 'recover from trauma', 
-        'healing tips', 'feel whole again'
-    ],
-     'anxiety_management': [
-        'how to manage anxiety', 'dealing with anxious thoughts', 'feeling anxious', 
-        'anxiety relief tips', 'overcoming anxiety'
-    ],
-    'motivation_boost': [
-        'need motivation', 'feeling unmotivated', 'how to stay motivated', 
-        'boost my motivation', 'motivation tips'
-    ],
-    'healthy_relationships': [
-        'how to build healthy relationships', 'relationship advice', 'improve relationships',
-        'maintain friendships', 'relationship support'
-    ],
-    'stress_management': [
-        'how to manage stress', 'stress relief tips', 'feeling stressed out', 
-        'dealing with stress', 'coping with stress'
-    ],
-    'time_management': [
-        'time management tips', 'how to organize my time', 'feeling overwhelmed by tasks', 
-        'better time management', 'ways to manage my time'
-    ],
-    'compassion': [
-        'how to be more compassionate', 'learning compassion', 'showing kindness', 
-        'compassion exercises', 'how to be kind to others'
-    ],
-    'assertive_communication': [
-        'how to be assertive', 'assertive communication tips', 'standing up for myself', 
-        'improve communication', 'being respectful but firm'
-    ],
-    'overcoming_procrastination': [
-        'how to stop procrastinating', 'beating procrastination', 'overcoming laziness', 
-        'why do I procrastinate', 'tips for procrastination'
-    ],
-    'body_positivity': [
-        'feeling comfortable in my body', 'how to practice body positivity', 'body image tips', 
-        'positive self-image', 'appreciate my body'
-    ],
-    'emotional_regulation': [
-        'how to manage my emotions', 'dealing with intense emotions', 'controlling my feelings', 
-        'emotional regulation techniques', 'staying calm under pressure'
-    ],
-    'conflict_resolution': [
-        'how to resolve conflicts', 'dealing with arguments', 'conflict management', 
-        'how to handle disagreements', 'settling conflicts peacefully'
-    ],
-    'forgiving_yourself': [
-        'how to forgive myself', 'moving past mistakes', 'self-forgiveness tips', 
-        'overcoming guilt', 'letting go of regret'
-    ],
-    'career_growth': [
-        'how to grow in my career', 'career advancement tips', 'improving my job skills', 
-        'professional development', 'work success tips'
-    ],
-    'rejection': [
-        'how to handle rejection', 'dealing with rejection', 'moving on after rejection', 
-        'overcoming failure', 'coping with rejection'
-    ],
-    'change_management': [
-        'dealing with change', 'how to cope with change', 'adapting to new situations', 
-        'managing change in life', 'embracing change'
-    ],
-    'setting_personal_values': [
-        'how to set my values', 'defining my values', 'personal values', 
-        'identify my values', 'living by my values'
-    ],
-    'overcoming_trauma': [
-        'how to heal from trauma', 'coping with traumatic experiences', 'healing after trauma', 
-        'overcoming painful memories', 'dealing with trauma'
-    ],
-    'work_life_balance': [
-        'how to balance work and life', 'tips for work-life balance', 'avoiding burnout', 
-        'managing work and personal time', 'finding balance'
-    ],
-    'coping_with_relocation': [
-        'adapting to a new place', 'tips for moving to a new location', 'adjusting after moving', 
-        'feeling homesick', 'coping with relocation'
-    ],
-    'habit_building': [
-        'how to build good habits', 'starting healthy habits', 'creating a new routine', 
-        'forming positive habits', 'habit-building tips'
-    ],
-    'self_expression': [
-        'how to express myself', 'being my true self', 'ways to show my personality', 
-        'expressing my feelings', 'finding my voice'
-    ],
-    'overcoming_fear': [
-        'how to face my fears', 'dealing with fear', 'overcoming anxiety', 
-        'building courage', 'coping with fear'
-    ],
-    'embracing_vulnerability': [
-        'how to be vulnerable', 'showing vulnerability', 'accepting my feelings', 
-        'being open and honest', 'embracing vulnerability'
-    ],
-    'finding_purpose': [
-        'how to find my purpose', 'discovering my life goals', 'finding meaning', 
-        'purpose in life', 'what is my purpose'
-    ],
-    'saying_no': [
-        'how to say no', 'setting boundaries', 'asserting myself', 
-        'declining politely', 'learning to say no'
-    ],
-    'managing_expectations': [
-        'setting realistic expectations', 'avoiding disappointment', 'managing my expectations', 
-        'keeping my expectations in check', 'how to set achievable goals'
-    ],
-    'breaking_bad_habits': [
-        'how to break bad habits', 'stopping unhealthy routines', 'breaking negative cycles', 
-        'changing bad habits', 'overcoming bad habits'
-    ]
+    "Mindfulness_and_Relaxation": [
+    "how to meditate",
+    "need to calm down",
+    "relaxation techniques",
+    "breathing exercises",
+    "ways to stay present",
+    "mindfulness practices",
+    "help me relax",
+    "meditation tips",
+    "grounding techniques",
+    "peaceful thoughts",
+    "calming exercises",
+    "mindful breathing",
+    "body scan meditation",
+    "relaxation methods",
+    "staying present",
+    "clear my mind",
+    "reduce stress",
+    "relax my body",
+    "mental peace",
+    "quieting thoughts",
+    "finding inner peace",
+    "calm anxiety naturally",
+    "mindfulness for beginners",
+    "daily meditation",
+    "meditation guidance",
+    "relaxation tips",
+    "mindful moments",
+    "peaceful mindset",
+    "stress relief",
+    "anxiety calming",
+    "meditation practice",
+    "relaxation routine",
+    "mindful living",
+    "tranquil thoughts",
+    "inner calmness",
+    "peaceful breathing",
+    "mindful awareness",
+    "relaxation techniques at work",
+    "quick meditation",
+    "instant calm",
+    "mindful walking",
+    "peaceful visualization",
+    "calming imagery",
+    "stress reduction",
+    "anxiety relief",
+    "meditation basics",
+    "relaxation exercises",
+    "mindful eating",
+    "peaceful mind",
+    "calm thoughts",
+    "mindfulness tips",
+    "relaxation methods",
+    "meditation help",
+    "stress management",
+    "anxiety control",
+    "mindful breathing",
+    "peaceful moments",
+    "calming techniques",
+    "meditation guidance",
+    "relaxation practice",
+    "mindful living tips",
+    "tranquility exercises",
+    "inner peace methods",
+    "peaceful practices",
+    "mindful moments",
+    "relaxation strategies",
+    "meditation routines",
+    "quick calm",
+    "mindful observation",
+    "peaceful exercises",
+    "calming practices",
+    "stress relief techniques",
+    "anxiety management",
+    "meditation steps",
+    "relaxation guide",
+    "mindful practice",
+    "peaceful methods",
+    "calm exercises",
+    "mindfulness routine",
+    "relaxation tips",
+    "meditation advice",
+    "stress reduction methods",
+    "anxiety relief techniques",
+    "mindful awareness practices",
+    "peaceful strategies",
+    "calming methods",
+    "meditation techniques",
+    "relaxation exercises",
+    "mindful living advice",
+    "tranquil practices",
+    "inner peace techniques",
+    "peaceful routines",
+    "mindful strategies",
+    "relaxation methods",
+    "meditation practices",
+    "quick relaxation",
+    "mindful techniques",
+    "peaceful exercises",
+    "calming strategies",
+    "stress management tips",
+    "anxiety control methods",
+    "meditation guidance",
+    "relaxation strategies",
+    "mindful moments practice",
+    "peaceful techniques"
+  ],
+  "Severity_and_Frequency": [
+    "anxiety level check",
+    "how often anxious",
+    "panic attack frequency",
+    "anxiety symptoms severity",
+    "daily anxiety rating",
+    "anxiety patterns",
+    "panic frequency",
+    "symptom tracking",
+    "anxiety intensity",
+    "anxiety occurrence",
+    "anxiety monitoring",
+    "symptom severity",
+    "panic attack patterns",
+    "anxiety frequency check",
+    "symptom intensity",
+    "anxiety tracking",
+    "panic monitoring",
+    "anxiety assessment",
+    "symptom patterns",
+    "anxiety measurement",
+    "panic severity",
+    "anxiety check-in",
+    "symptom frequency",
+    "anxiety intensity scale",
+    "panic tracking",
+    "anxiety monitoring system",
+    "symptom assessment",
+    "anxiety pattern check",
+    "panic intensity",
+    "anxiety severity scale",
+    "symptom monitoring",
+    "anxiety frequency log",
+    "panic assessment",
+    "anxiety intensity check",
+    "symptom tracking system",
+    "anxiety pattern monitoring",
+    "panic frequency check",
+    "anxiety severity assessment",
+    "symptom intensity scale",
+    "anxiety tracking log",
+    "panic monitoring system",
+    "anxiety assessment scale",
+    "symptom pattern check",
+    "anxiety measurement tool",
+    "panic severity scale",
+    "anxiety check system",
+    "symptom frequency log",
+    "anxiety intensity monitor",
+    "panic tracking system",
+    "anxiety monitoring log",
+    "symptom assessment scale",
+    "anxiety pattern tracker",
+    "panic intensity check",
+    "anxiety severity monitor",
+    "symptom monitoring system",
+    "anxiety frequency tracker",
+    "panic assessment scale",
+    "anxiety intensity log",
+    "symptom tracking log",
+    "anxiety pattern assessment",
+    "panic frequency monitor",
+    "anxiety severity tracker",
+    "symptom intensity monitor",
+    "anxiety tracking system",
+    "panic monitoring log",
+    "anxiety assessment log",
+    "symptom pattern tracker",
+    "anxiety measurement system",
+    "panic severity monitor",
+    "anxiety check tracker",
+    "symptom frequency monitor",
+    "anxiety intensity tracking",
+    "panic tracking log",
+    "anxiety monitoring scale",
+    "symptom assessment log",
+    "anxiety pattern monitoring",
+    "panic intensity tracker",
+    "anxiety severity logging",
+    "symptom monitoring log",
+    "anxiety frequency assessment",
+    "panic assessment log",
+    "anxiety intensity system",
+    "symptom tracking scale",
+    "anxiety pattern check",
+    "panic frequency tracker",
+    "anxiety severity scale",
+    "symptom intensity log",
+    "anxiety tracking monitor",
+    "panic monitoring scale",
+    "anxiety assessment system",
+    "symptom pattern log",
+    "anxiety measurement log",
+    "panic severity tracker",
+    "anxiety check log",
+    "symptom frequency scale",
+    "anxiety intensity assessment",
+    "panic tracking monitor",
+    "anxiety monitoring tracker",
+    "symptom assessment system",
+    "anxiety pattern scale",
+    "panic intensity log",
+    "anxiety severity system",
+    "symptom monitoring scale",
+    "anxiety frequency monitor",
+    "panic assessment tracker",
+    "anxiety intensity scale",
+    "symptom tracking monitor"
+  ],
+  "Environmental_Triggers": [
+    "work stress triggers",
+    "social anxiety causes",
+    "crowd anxiety trigger",
+    "noise sensitivity",
+    "environmental stressors",
+    "anxiety at home",
+    "workplace anxiety",
+    "public transport fears",
+    "social gathering stress",
+    "traffic anxiety",
+    "weather anxiety",
+    "classroom anxiety",
+    "shopping anxiety",
+    "restaurant stress",
+    "meeting anxiety",
+    "phone anxiety",
+    "performance anxiety",
+    "travel anxiety",
+    "elevator fears",
+    "public speaking stress",
+    "driving anxiety",
+    "hospital anxiety",
+    "flight anxiety",
+    "stage fright",
+    "exam stress",
+    "interview anxiety",
+    "deadline pressure",
+    "presentation anxiety",
+    "family gathering stress",
+    "party anxiety",
+    "dating anxiety",
+    "gym anxiety",
+    "doctor visit stress",
+    "workplace meetings",
+    "public bathroom anxiety",
+    "restaurant anxiety",
+    "mall anxiety",
+    "cinema stress",
+    "concert anxiety",
+    "sports performance",
+    "morning anxiety",
+    "nighttime anxiety",
+    "commute stress",
+    "parking anxiety",
+    "waiting room stress",
+    "classroom presentation",
+    "group project anxiety",
+    "public performance",
+    "social media stress",
+    "video call anxiety",
+    "workplace competition",
+    "family dinner stress",
+    "holiday anxiety",
+    "vacation stress",
+    "moving anxiety",
+    "job interview stress",
+    "first day anxiety",
+    "meeting new people",
+    "public speaking event",
+    "performance review",
+    "deadline anxiety",
+    "test taking stress",
+    "social event anxiety",
+    "crowd situations",
+    "noise triggers",
+    "bright light sensitivity",
+    "temperature stress",
+    "confined spaces",
+    "open spaces anxiety",
+    "height anxiety",
+    "water anxiety",
+    "animal anxiety",
+    "storm anxiety",
+    "darkness fears",
+    "sleeping anxiety",
+    "eating in public",
+    "writing anxiety",
+    "reading aloud",
+    "phone calls",
+    "video recording",
+    "photo taking",
+    "social media posting",
+    "public transport",
+    "elevator riding",
+    "escalator anxiety",
+    "bridge crossing",
+    "tunnel anxiety",
+    "highway driving",
+    "parking stress",
+    "traffic jams",
+    "time pressure",
+    "decision making",
+    "financial stress",
+    "health anxiety",
+    "relationship stress",
+    "work deadlines",
+    "performance pressure",
+    "competition anxiety",
+    "evaluation stress",
+    "criticism anxiety",
+    "conflict situations",
+    "confrontation fear",
+    "authority figures",
+    "social rejection",
+    "perfectionism stress",
+    "change anxiety",
+    "uncertainty stress",
+    "future anxiety",
+    "past trauma triggers",
+    "memory anxiety",
+    "identity stress"
+  ],
+  "Past_Experiences": [
+    "childhood anxiety",
+    "past trauma",
+    "previous panic attacks",
+    "anxiety history",
+    "traumatic events",
+    "past experiences",
+    "anxiety patterns",
+    "old fears",
+    "previous therapy",
+    "anxiety development",
+    "past triggers",
+    "childhood fears",
+    "historical anxiety",
+    "anxiety origins",
+    "past treatment",
+    "anxiety evolution",
+    "previous symptoms",
+    "anxiety background",
+    "past coping",
+    "anxiety journey",
+    "previous struggles",
+    "anxiety timeline",
+    "past management",
+    "anxiety progression",
+    "previous episodes",
+    "anxiety roots",
+    "past challenges",
+    "anxiety development",
+    "previous experiences",
+    "anxiety history review",
+    "past anxiety patterns",
+    "previous conditions",
+    "anxiety background check",
+    "past symptoms",
+    "anxiety chronicle",
+    "previous incidents",
+    "anxiety story",
+    "past situations",
+    "anxiety development path",
+    "previous occurrences",
+    "anxiety timeline review",
+    "past episodes",
+    "anxiety progression path",
+    "previous cases",
+    "anxiety background story",
+    "past conditions",
+    "anxiety history check",
+    "previous patterns",
+    "anxiety origin story",
+    "past incidents",
+    "anxiety development review",
+    "previous situations",
+    "anxiety chronicle review",
+    "past cases",
+    "anxiety timeline check",
+    "previous stories",
+    "anxiety progression review",
+    "past occurrences",
+    "anxiety background path",
+    "previous episodes review",
+    "anxiety origin check",
+    "past patterns review",
+    "anxiety development story",
+    "previous incidents check",
+    "anxiety history path",
+    "past situations review",
+    "anxiety chronicle path",
+    "previous cases review",
+    "anxiety timeline story",
+    "past episodes check",
+    "anxiety progression story",
+    "previous patterns check",
+    "anxiety background review",
+    "past incidents path",
+    "anxiety origin path",
+    "previous situations check",
+    "anxiety development check",
+    "past cases path",
+    "anxiety history story",
+    "previous occurrences review",
+    "anxiety chronicle story",
+    "past patterns path",
+    "anxiety timeline path",
+    "previous episodes story",
+    "anxiety progression check",
+    "past incidents story",
+    "anxiety background story",
+    "previous situations path",
+    "anxiety origin review",
+    "past cases story",
+    "anxiety development path",
+    "previous patterns story",
+    "anxiety history check",
+    "past occurrences path",
+    "anxiety chronicle check",
+    "previous incidents path",
+    "anxiety timeline review",
+    "past episodes path",
+    "anxiety progression path",
+    "previous situations story",
+    "anxiety origin story",
+    "past patterns story",
+    "anxiety development review",
+    "previous cases path",
+    "anxiety history path",
+    "past incidents check"
+  ],
+  "Professional_Help": [
+    "find therapist",
+    "counseling options",
+    "therapy benefits",
+    "mental health help",
+    "anxiety specialist",
+    "professional support",
+    "counselor search",
+    "treatment options",
+    "therapy costs",
+    "mental health resources",
+    "anxiety treatment",
+    "professional guidance",
+    "counseling benefits",
+    "therapy types",
+    "mental health support",
+    "anxiety counseling",
+    "professional therapy",
+    "counselor recommendations",
+    "treatment plans",
+    "therapy sessions",
+    "mental health care",
+    "anxiety specialists",
+    "professional counseling",
+    "therapy advice",
+    "mental health treatment",
+    "anxiety professionals",
+    "counseling services",
+    "therapy resources",
+    "mental health specialists",
+    "anxiety help",
+    "professional treatment",
+    "counseling support",
+    "therapy options",
+    "mental health counseling",
+    "anxiety therapy",
+    "professional advice",
+    "counseling types",
+    "therapy plans",
+    "mental health professionals",
+    "anxiety treatment options",
+    "professional support services",
+    "counseling resources",
+    "therapy recommendations",
+    "mental health therapy",
+    "anxiety counseling options",
+    "professional guidance services",
+    "therapy support",
+    "mental health treatment options",
+    "anxiety professional help",
+    "counseling plans",
+    "therapy services",
+    "mental health advice",
+    "anxiety specialist search",
+    "professional counseling options",
+    "therapy treatment",
+    "mental health support services",
+    "anxiety therapy options",
+    "professional resources",
+    "counseling advice",
+    "therapy specialists",
+    "mental health plans",
+    "anxiety treatment services",
+    "professional therapy options",
+    "counseling treatment",
+    "therapy help",
+    "mental health specialists search",
+    "anxiety counseling services",
+    "professional support options",
+    "therapy guidance",
+    "mental health resources search",
+    "anxiety professional support",
+    "counseling specialists",
+    "therapy treatment options",
+    "mental health counseling services",
+    "anxiety therapy services",
+    "professional help options",
+    "counseling guidance",
+    "therapy advice services",
+    "mental health treatment services",
+    "anxiety specialist options",
+    "professional counseling services",
+    "therapy support options",
+    "mental health guidance",
+    "anxiety treatment specialists",
+    "professional therapy services",
+    "counseling help",
+    "therapy resources search",
+    "mental health help options",
+    "anxiety counseling specialists",
+    "professional support search",
+    "therapy guidance services",
+    "mental health specialist options",
+    "anxiety professional services",
+    "counseling support options",
+    "therapy treatment services",
+    "mental health counseling options",
+    "anxiety therapy specialists",
+    "professional help services",
+    "counseling resources search",
+    "therapy specialist options",
+    "mental health treatment specialists",
+    "anxiety support services",
+    "professional guidance options",
+    "counseling treatment services",
+    "therapy help options",
+    "mental health professional search"
+  ],
+  "Motivational_Support": [
+    "need encouragement",
+    "feeling unmotivated",
+    "motivation help",
+    "positive thinking",
+    "confidence boost",
+    "encouragement needed",
+    "staying motivated",
+    "positive mindset",
+    "self motivation",
+    "motivation tips",
+    "encouraging words",
+    "positive attitude",
+    "confidence building",
+    "motivation boost",
+    "encouraging thoughts",
+    "positive energy",
+    "self confidence",
+    "motivation advice",
+    "encouraging messages",
+    "positive thinking help",
+    "confidence tips",
+    "motivation support",
+    "encouraging support",
+    "positive mindset help",
+    "self esteem",
+    "motivation guidance",
+    "encouraging advice",
+    "positive attitude help",
+    "confidence advice",
+    "motivation ideas",
+    "encouraging ideas",
+    "positive energy boost",
+    "self worth",
+    "motivation strategies",
+    "encouraging strategies",
+    "positive thinking tips",
+    "confidence strategies",
+    "motivation techniques",
+    "encouraging techniques",
+    "positive mindset tips",
+    "self belief",
+    "motivation methods",
+    "encouraging methods",
+    "positive attitude tips",
+    "confidence methods",
+  ],
+  "Self_Awareness": [
+    "how am i feeling",
+    "check my mood",
+    "track my emotions",
+    "understand my anxiety",
+    "identify my triggers",
+    "what causes my stress",
+    "recognize anxiety signs",
+    "monitor my progress",
+    "track panic attacks",
+    "emotional patterns",
+    "why am i anxious",
+    "anxiety journal",
+    "mood tracking",
+    "feeling overwhelmed",
+    "stress levels",
+    "rate my anxiety",
+    "document triggers",
+    "analyze my thoughts",
+    "notice body signals",
+    "physical symptoms",
+    "emotional state",
+    "record my day",
+    "anxiety intensity",
+    "mood fluctuations",
+    "stress indicators",
+    "panic symptoms",
+    "anxiety patterns",
+    "emotional awareness",
+    "self reflection",
+    "mindful check in",
+    "body scan",
+    "thought patterns",
+    "identify emotions",
+    "track sleep quality",
+    "energy levels",
+    "stress response",
+    "emotional triggers",
+    "anxiety cycle",
+    "mood history",
+    "behavioral patterns",
+    "symptom diary",
+    "emotional intelligence",
+    "self observation",
+    "mental state",
+    "anxiety profile",
+    "daily reflection",
+    "emotional journey",
+    "stress tracking",
+    "anxiety monitoring",
+    "thought awareness",
+    "emotional check",
+    "trigger identification",
+    "anxiety awareness",
+    "mood patterns",
+    "stress symptoms",
+    "anxiety insights",
+    "emotional trends",
+    "self monitoring",
+    "anxiety diary",
+    "thought tracking",
+    "mood recognition",
+    "stress awareness",
+    "anxiety history",
+    "emotional mapping",
+    "symptom tracking",
+    "anxiety log",
+    "mood monitoring",
+    "stress diary",
+    "thought journal",
+    "emotional record",
+    "trigger log",
+    "anxiety check",
+    "mood log",
+    "stress patterns",
+    "thought diary",
+    "emotional diary",
+    "trigger diary",
+    "anxiety tracker",
+    "mood checker",
+    "stress log",
+    "thought log",
+    "emotional log",
+    "trigger tracker",
+    "anxiety monitor",
+    "mood tracker",
+    "stress monitor",
+    "thought monitor",
+    "emotional tracker",
+    "trigger monitor",
+    "anxiety record",
+    "mood diary",
+    "stress tracker",
+    "thought tracker",
+    "emotional monitor",
+    "trigger patterns",
+    "anxiety patterns",
+    "mood patterns",
+    "stress analysis",
+    "thought analysis",
+    "emotional analysis",
+    "trigger analysis",
+    "anxiety trends",
+    "mood trends",
+    "stress trends",
+    "thought trends",
+    "emotional trends",
+    "trigger trends"
+  ],
+  "Resources_and_Education": [
+    "anxiety articles",
+    "learn about anxiety",
+    "anxiety resources",
+    "mental health tips",
+    "anxiety education",
+    "stress management guides",
+    "anxiety information",
+    "mental health resources",
+    "anxiety research",
+    "coping strategies",
+    "anxiety facts",
+    "mental health articles",
+    "anxiety guides",
+    "stress relief tips",
+    "anxiety learning",
+    "mental health education",
+    "anxiety knowledge",
+    "stress management info",
+    "anxiety materials",
+    "mental health guides",
+    "anxiety understanding",
+    "stress education",
+    "anxiety insights",
+    "mental health learning",
+    "anxiety awareness",
+    "stress resources",
+    "anxiety tools",
+    "mental health knowledge",
+    "anxiety support",
+    "stress information",
+    "anxiety help",
+    "mental health materials",
+    "anxiety management",
+    "stress guidance",
+    "anxiety guidance",
+    "mental health insights",
+    "anxiety tips",
+    "stress understanding",
+    "anxiety basics",
+    "mental health awareness",
+    "anxiety explained",
+    "stress knowledge",
+    "anxiety overview",
+    "mental health tools",
+    "anxiety fundamentals",
+    "stress basics",
+    "anxiety principles",
+    "mental health support",
+    "anxiety concepts",
+    "stress help",
+    "anxiety studies",
+    "mental health management",
+    "anxiety science",
+    "stress tips",
+    "anxiety research",
+    "mental health information",
+    "anxiety literature",
+    "stress concepts",
+    "anxiety reading",
+    "mental health basics",
+    "anxiety library",
+    "stress studies",
+    "anxiety resources",
+    "mental health principles",
+    "anxiety materials",
+    "stress overview",
+    "anxiety documents",
+    "mental health concepts",
+    "anxiety references",
+    "stress fundamentals",
+    "anxiety sources",
+    "mental health studies",
+    "anxiety knowledge base",
+    "stress science",
+    "anxiety database",
+    "mental health research",
+    "anxiety collection",
+    "stress literature",
+    "anxiety repository",
+    "mental health reading",
+    "anxiety archive",
+    "stress library",
+    "anxiety information",
+    "mental health resources",
+    "anxiety education",
+    "stress materials",
+    "anxiety learning",
+    "mental health documents",
+    "anxiety understanding",
+    "stress references",
+    "anxiety awareness",
+    "mental health sources",
+    "anxiety knowledge",
+    "stress knowledge base",
+    "anxiety insights",
+    "mental health database",
+    "anxiety basics",
+    "stress collection",
+    "anxiety fundamentals",
+    "mental health repository",
+    "anxiety principles",
+    "stress archive",
+    "anxiety concepts",
+    "mental health information",
+    "anxiety studies",
+    "stress education",
+    "anxiety science",
+    "mental health learning",
+    "anxiety literature",
+    "stress understanding"
+  ],
+  "Real_Time_Techniques": [
+    "breathing exercise",
+    "calm down now",
+    "quick anxiety relief",
+    "grounding techniques",
+    "panic help",
+    "immediate relief",
+    "anxiety exercise",
+    "calming methods",
+    "stress relief now",
+    "anxiety reduction",
+    "relaxation techniques",
+    "mindfulness exercise",
+    "emergency calm",
+    "instant peace",
+    "anxiety control",
+    "quick meditation",
+    "rapid relaxation",
+    "stress reduction",
+    "anxiety management",
+    "calm breathing",
+    "panic reduction",
+    "quick calm",
+    "anxiety relief",
+    "instant meditation",
+    "stress control",
+    "breathing help",
+    "immediate calm",
+    "anxiety ease",
+    "quick peace",
+    "stress relief",
+    "panic control",
+    "instant relief",
+    "anxiety calm",
+    "quick relax",
+    "stress ease",
+    "breathing technique",
+    "immediate peace",
+    "anxiety peace",
+    "quick calm down",
+    "stress reduction",
+    "panic ease",
+    "instant calm",
+    "anxiety relax",
+    "quick peace",
+    "stress control",
+    "breathing help",
+    "immediate relief",
+    "anxiety control",
+    "quick meditation",
+    "stress calm",
+    "panic relief",
+    "instant peace",
+    "anxiety reduction",
+    "quick relaxation",
+    "stress ease",
+    "breathing exercise",
+    "immediate calm",
+    "anxiety peace",
+    "quick relief",
+    "stress relief",
+    "panic control",
+    "instant relax",
+    "anxiety calm",
+    "quick peace",
+    "stress reduction",
+    "breathing technique",
+    "immediate relief",
+    "anxiety ease",
+    "quick calm",
+    "stress control",
+    "panic ease",
+    "instant calm",
+    "anxiety relief",
+    "quick meditation",
+    "stress peace",
+    "breathing help",
+    "immediate peace",
+    "anxiety control",
+    "quick relaxation",
+    "stress ease",
+    "panic relief",
+    "instant relief",
+    "anxiety reduction",
+    "quick calm",
+    "stress calm",
+    "breathing exercise",
+    "immediate calm",
+    "anxiety peace",
+    "quick relief",
+    "stress relief",
+    "panic control",
+    "instant peace",
+    "anxiety ease",
+    "quick meditation",
+    "stress reduction",
+    "breathing technique",
+    "immediate relief",
+    "anxiety calm",
+    "quick relaxation",
+    "stress control",
+    "panic ease",
+    "instant calm",
+    "anxiety relief",
+    "quick peace",
+    "stress ease",
+    "breathing help",
+    "immediate peace",
+    "anxiety control"
+  ],
+  "Depression_Symptoms": [
+    "feeling hopeless", "symptoms of depression", "signs of depression", 
+    "chronic sadness", "feeling numb", "lack of motivation", 
+    "feeling worthless", "excessive guilt", "feeling empty", 
+    "difficulty concentrating", "loss of interest", "sleep problems", 
+    "feeling disconnected", "low energy", "increased irritability", 
+    "social withdrawal", "feeling like a burden", "hopeless thoughts", 
+    "constant fatigue", "negative thinking", "feeling stuck", 
+    "mood swings", "feeling overwhelmed", "feeling inadequate", 
+    "thoughts of isolation", "feeling emotionally drained", "inability to feel joy", "I feel depressed and hopeless", "What are the symptoms of depression?", 
+    "I’ve been feeling chronically sad and depressed", "What are the signs I might be depressed?",
+    "I’m feeling numb and disconnected, could I be depressed?", "Is it normal to feel worthless when I'm depressed?",
+    "Why do I feel empty and depressed all the time?", "I've been having trouble concentrating and I feel depressed",
+    "I'm constantly tired and depressed, is this normal?", "Why do I feel like I’ve lost interest in everything? Could this be depression?",
+    "I feel so disconnected from others, could this be depression?", "I've been feeling increasingly irritable and depressed",
+    "I'm withdrawing from social activities, is that a sign of depression?", "I feel like a burden to everyone, is this depression?",
+    "I've been feeling so tired and depressed, it’s affecting my daily life", "Can feeling overwhelmed and depressed be connected?",
+    "I can't escape my negative thoughts, am I depressed?", "I feel stuck, could this be because of depression?"
+
+],
+"Depression_Coping_Strategies": [
+    "coping with depression", "ways to manage depression", "depression relief methods",
+    "how to handle depression", "dealing with depressive episodes", "managing low moods", 
+    "tips to manage depression", "self-care for depression", "mental health recovery tips", 
+    "coping mechanisms for depression", "how to lift your mood", "strategies to reduce sadness", 
+    "mental health coping strategies", "mindfulness for depression", "techniques to overcome depression",
+    "emotional regulation for depression", "dealing with hopelessness", "managing negative thoughts", 
+    "overcoming feelings of worthlessness", "how to deal with sadness", "mental health coping tools", 
+    "building resilience against depression", "depression relief techniques", "how to shift depressive thoughts",
+    "supporting yourself through depression", "mental health self-care practices", "What can I do if I am depressed?", "How can I handle depression on my own?",
+    "I’m depressed and need help managing my emotions", "What are some effective coping strategies for dealing with depression?",
+    "How can I lift my mood when I’m feeling depressed?", "I feel so depressed, what can I do to manage it better?",
+    "Are there any good mental health recovery tips for someone who is depressed?", "What are some self-care strategies for someone who feels depressed?",
+    "How can I overcome the feelings of worthlessness that come with depression?", "What mindfulness techniques can help with depression?",
+    "How can I overcome my negative thoughts when I’m depressed?", "How can I feel better if I’m stuck in depression?",
+    "What can I do to support myself through depression?", "How can I build resilience if I’m feeling depressed?",
+    "What strategies can I use to cope with the emotional toll of depression?"
+
+],
+"Seeking_Professional_Help": [
+    "therapy for depression", "how to find a therapist", "talking to a counselor", 
+    "mental health professional", "finding help for depression", "seeking therapy for depression",
+    "looking for depression support", "how to get professional help for depression", 
+    "depression treatment options", "psychologist for depression", "getting help for depression",
+    "seeking support for mental health", "should I see a therapist for depression?", "help with depressive feelings", 
+    "where to get help for depression", "depression counseling services", "when to seek professional help",  "Should I see a therapist if I am depressed?", "How do I find a therapist for depression?",
+    "I’ve been feeling depressed for weeks, how can I get professional help?", "What kind of therapy can help with depression?",
+    "Is therapy necessary when you’re feeling depressed?", "How can I get professional support for my depression?",
+    "What should I do if I am deeply depressed and need help?", "Where can I get help for depression?",
+    "What are my options for therapy when I feel severely depressed?", "Can a psychologist help if I am depressed?",
+    "How do I know if I need therapy for my depression?", "Should I see a therapist if I’m constantly feeling depressed?",
+    "When should I seek professional help for depression?", "I’ve been struggling with depression, how can a therapist assist me?",
+    "What options do I have if I’m seeking therapy for depression?"
+
+],
+"Depression_Support_Network": [
+    "talking to family about depression", "support from friends during depression", 
+    "finding support for depression", "how to talk to someone about depression", 
+    "building a support system", "finding a support group for depression", 
+    "depression support networks", "connecting with others who understand depression",
+    "support for people with depression", "getting help from loved ones", 
+    "talking to someone about feeling depressed", "peer support for depression", 
+    "how to ask for help with depression", "support for managing depression",  "How do I talk to someone when I am feeling depressed?", "How can my family support me if I’m depressed?",
+    "What’s the best way to ask for help when I am depressed?", "How can I talk to my friends about my depression?",
+    "Can a support group help when I am depressed?", "How can I build a support network when I’m feeling depressed?",
+    "Where can I find a support group for depression?", "How can I find people who understand what it feels like to be depressed?",
+    "How can I talk about my depression with people who care?", "What’s the best way to open up about being depressed?",
+    "What are the benefits of peer support when I’m depressed?", "How can I find people who can help when I feel depressed?"
+
+],
+"Depression_Affirmations": [
+    "positive affirmations for depression", "affirmations for overcoming sadness", 
+    "affirmations to lift your mood", "boosting self-esteem with affirmations", 
+    "powerful affirmations for depression", "I am not defined by my depression", 
+    "I can overcome this", "affirmations to help with hopelessness", 
+    "I am worthy of love and care", "I am capable of healing", 
+    "affirmations for building strength", "I am strong enough to face this", 
+    "every day is a new opportunity", "I can get through this", "I am feeling depressed, but I can get through this", "I am not defined by my depression",
+    "Even though I am depressed, I know I have the strength to heal", "I am worthy of love and care despite my depression",
+    "Every day I face my depression, I am getting stronger", "My depression doesn’t control me, I can overcome it",
+    "Though I feel depressed, I believe things can get better", "Even when I’m depressed, I am capable of healing",
+    "I deserve peace, even when I feel depressed", "I am not alone in my depression, I can seek help",
+    "Each step I take, no matter how small, brings me closer to overcoming depression"
+ 
+],
+"Depression_Exercise_Tips": [
+    "exercises for depression", "how exercise helps with depression", 
+    "physical activity to combat depression", "how to stay active with depression", 
+    "simple exercises for depression", "using exercise to boost mood", 
+    "depression and physical activity", "exercise routines for depression", 
+    "how to use exercise to fight sadness", "staying active during depression", 
+    "benefits of exercise for mental health", "low-impact exercises for depression", "How can exercise help when I’m feeling depressed?", "What are some exercises I can do when I’m depressed?",
+    "I’m depressed, what physical activities can help boost my mood?", "How can I stay active when I feel depressed?",
+    "What exercises help fight feelings of depression?", "How can a workout routine help if I am feeling depressed?",
+    "Can physical activity reduce the effects of depression?", "What low-impact exercises can help when I’m feeling depressed?",
+    "How can movement and exercise help when I’m stuck in depression?", "Can yoga help when I’m feeling depressed?",
+    "Is walking a good option for someone who feels depressed?", "How can exercise help me cope with depression and sadness?"
+ 
+],
+"Depression_Sleep_Tips": [
+    "how to improve sleep with depression", "sleep hygiene for depression", 
+    "tips for better sleep with depression", "how to sleep better when depressed", 
+    "depression and sleep problems", "overcoming insomnia with depression", 
+    "tips for restful sleep during depression", "how to get more sleep when depressed",
+    "sleep strategies for people with depression", "improving sleep habits during depression",  "How can I improve my sleep when I’m depressed?", "I’ve been having trouble sleeping due to depression, what can I do?",
+    "What are some sleep tips when you feel depressed?", "How can sleep hygiene help when I’m feeling depressed?",
+    "What should I do to get better sleep if I’m depressed?", "How can I overcome insomnia caused by depression?",
+    "I feel depressed and tired all the time, what can help me sleep better?", "Can a better sleep routine help me manage depression?",
+    "How can I improve my sleep habits when dealing with depression?", "What relaxation techniques can help me sleep when I’m depressed?",
+    "What are some natural ways to improve sleep when you feel depressed?"
+ 
+],
+"Depression_Mindfulness_Techniques": [
+    "mindfulness for depression", "how to practice mindfulness with depression", 
+    "meditation for depression", "using mindfulness to manage depression", 
+    "breathing exercises for depression", "grounding techniques for depression", 
+    "how to be mindful during depressive episodes", "mindful ways to cope with sadness", 
+    "meditation for mental health", "how mindfulness can help with depression", 
+    "mindfulness exercises for emotional regulation", "how mindfulness reduces stress and depression", "How can mindfulness help when I’m feeling depressed?", "What are some mindfulness techniques to manage depression?",
+    "Can meditation help with depression?", "How do breathing exercises help when you’re depressed?",
+    "How can grounding techniques help when I feel depressed?", "What mindfulness practices can help when I am depressed?",
+    "How can mindfulness shift my mood if I’m feeling depressed?", "How can I use mindfulness to cope with depression?",
+    "What is mindfulness and how can it help with depression?", "How can I apply mindfulness to my depression?"
+ 
+],
+  "Feedback_and_Improvement": [
+    "rate experience",
+    "provide feedback",
+    "suggest improvements",
+    "share thoughts",
+    "app review",
+    "feature request",
+    "report issue",
+    "give rating",
+    "improvement ideas",
+    "user feedback",
+    "rate app",
+    "suggest features",
+    "report bug",
+    "share experience",
+    "app feedback",
+    "improvement suggestions",
+    "user review",
+    "rate service",
+    "suggest changes",
+    "report problem",
+    "share opinion",
+    "app suggestion",
+    "improvement request",
+    "user input",
+    "rate quality",
+    "suggest update",
+    "report error",
+    "share feedback",
+    "app improvement",
+    "feature feedback",
+    "user suggestion",
+    "rate usefulness",
+    "suggest enhancement",
+    "report glitch",
+    "share review",
+    "app rating",
+    "improvement feedback",
+    "user experience",
+    "rate effectiveness",
+    "suggest addition",
+    "report difficulty",
+    "share suggestion",
+    "app comment",
+    "feature suggestion",
+    "user rating",
+    "rate satisfaction",
+    "suggest upgrade",
+    "report confusion",
+    "share opinion",
+    "app review",
+    "improvement idea",
+    "user comment",
+    "rate helpfulness",
+    "suggest change",
+    "report problem",
+    "share thought",
+    "app feedback",
+    "feature request",
+    "user input",
+    "rate quality",
+    "suggest update",
+    "report issue",
+    "share experience",
+    "app suggestion",
+    "improvement request",
+    "user review",
+    "rate service",
+    "suggest enhancement",
+    "report bug",
+    "share feedback",
+    "app improvement",
+    "feature feedback",
+    "user suggestion",
+    "rate usefulness",
+    "suggest addition",
+    "report error",
+    "share review",
+    "app rating",
+    "improvement feedback",
+    "user experience",
+    "rate effectiveness",
+    "suggest upgrade",
+    "report glitch",
+    "share suggestion",
+    "app comment",
+    "feature suggestion",
+    "user rating",
+    "rate satisfaction",
+    "suggest change",
+    "report difficulty",
+    "share opinion",
+    "app review",
+    "improvement idea",
+    "user comment",
+    "rate helpfulness",
+    "suggest update",
+    "report confusion",
+    "share thought",
+    "app feedback",
+    "feature request",
+    "user input",
+    "rate quality",
+    "suggest enhancement",
+    "report problem",
+    "share experience",
+    "app suggestion",
+    "improvement request",
+    "user review"
+  ],
     }
 
     def load_or_train_model(self):
@@ -442,145 +1902,441 @@ class ChatbotView(APIView):
     def post(self, request):
         # Updated responses for each intent with multiple options
         responses = {
-            'greeting': [
-        'Hello! How can I assist you today?',
-        'Hi there! How are you feeling?',
-        'Greetings! What brings you to our chat today?',
-        'Good to see you! How has your day been so far?',
-        'Welcome! Is there anything specific on your mind?'
+"greeting": [
+    "Hello! I'm SereniAI, your mental health support companion. How are you feeling today?",
+    "Hi there! I'm here to listen and support you. Would you like to talk about what's on your mind?",
+    "Welcome! I'm SereniAI, a safe space for you to share your thoughts and feelings. How can I help you today?",
+    "Hello! I'm your mental wellness companion SereniAI. What brings you here today?",
+    "Hi! I'm SereniAI, and I'm here to support you through anything you're experiencing. How are you doing?",
+    "Greetings! I'm SereniAI, offering you a space of understanding and support. Would you like to share what's on your mind?",
+    "Welcome to our conversation! I'm SereniAI, here to listen and provide support. How's your day going?",
+    "Hello there! Thank you for reaching out to SereniAI. How can I make this space more comfortable for you?",
+    "Hi! I'm your AI companion SereniAI. I'm here to listen without judgment. What would you like to discuss?",
+    "Welcome! This is SereniAI, creating a safe environment for you to express yourself. How are you feeling right now?",
+    "Hello! I'm SereniAI, ready to support your emotional well-being. What's been on your mind lately?",
+    "Hi there! SereniAI here, offering a space where you can feel heard and understood. How can I help you today?",
+    "Greetings! I'm your supportive companion SereniAI. What would you like to talk about?",
+    "Welcome! I'm SereniAI, here to provide emotional support and understanding. How's everything going?",
+    "Hello! This is your mental health ally SereniAI. How can I support you today?",
+    "Hi! SereniAI here, ready to listen and provide a caring presence. What's on your heart?",
+    "Welcome to our safe space! I'm SereniAI, here to support your journey. How are you feeling at this moment?",
+    "Hello there! I'm SereniAI, your emotional support companion. What would you like to explore today?",
+    "Hi! Thank you for connecting with SereniAI. I'm here to help you process your thoughts. How's your day been?",
+    "Greetings! This is SereniAI, offering you understanding and support. What's been happening in your world?",
+    "Welcome! I'm your companion SereniAI, here to listen and support. How can I help you feel more at ease?",
+    "Hello! SereniAI present and ready to provide emotional support. What's on your mind today?",
+    "Hi there! I'm SereniAI, creating a judgment-free zone for you. Would you like to share what brings you here?",
+    "Greetings! Thank you for reaching out to SereniAI. How can I make this conversation helpful for you?",
+    "Welcome! I'm your supportive AI companion SereniAI. What would you like to focus on today?",
+    "Hello! This is SereniAI, here to provide a listening ear. How are you doing right now?",
+    "Hi! I'm SereniAI, your mental wellness partner. What's been weighing on your mind?",
+    "Greetings! SereniAI here, ready to support your emotional journey. How can I help you today?",
+    "Welcome to our conversation space! I'm SereniAI, offering support and understanding. What brings you here?",
+    "Hello there! I'm your AI companion SereniAI. How can I support you through your current experiences?",
+    "Hi! This is SereniAI, providing a safe harbor for your thoughts. How are you feeling today?",
+    "Welcome! I'm SereniAI, here to listen and understand. What would you like to discuss?",
+    "Greetings! Thank you for sharing this space with SereniAI. How can I support you best?",
+    "Hello! I'm your emotional support companion SereniAI. What's been going on in your life?",
+    "Hi there! SereniAI ready to provide care and understanding. How are you doing today?",
+    "Welcome! This is SereniAI, offering a comfortable space for conversation. What's on your mind?",
+    "Hello! I'm SereniAI, your mental health support partner. How can I help you process your feelings?",
+    "Hi! SereniAI here, creating a safe environment for expression. Would you like to share what's happening?",
+    "Greetings! I'm your AI companion SereniAI. How can I make this space more supportive for you?",
+    "Welcome to our safe haven! I'm SereniAI, here to listen and care. What brings you here today?",
+    "Hello there! Thank you for choosing SereniAI. How can I help you feel more heard?",
+    "Hi! I'm your dedicated support companion SereniAI. What would you like to explore together?",
+    "Welcome! SereniAI present and ready to support your journey. How are you feeling right now?",
+    "Greetings! This is SereniAI, offering understanding and companionship. What's been on your heart?",
+    "Hello! I'm SereniAI, here to provide emotional guidance. How can I support you today?",
+    "Hi there! I'm your mental wellness companion SereniAI. Would you like to share what's happening?",
+    "Welcome! SereniAI here, creating a space for open dialogue. How's everything going?",
+    "Hello! Thank you for connecting with SereniAI. What would you like to talk about?",
+    "Hi! I'm SereniAI, your supportive presence. How can I help you navigate your feelings?",
+    "Greetings! This is SereniAI, offering a judgment-free environment. What's on your mind?",
+    "Welcome to our conversation! I'm SereniAI, here to support and understand. How are you doing?",
+    "Hello there! SereniAI ready to provide emotional support. What brings you here today?",
+    "Hi! I'm your AI companion SereniAI. How can I help you feel more supported?",
+    "Welcome! This is SereniAI, creating a safe space for sharing. Would you like to talk about what's happening?",
+    "Greetings! Thank you for reaching out to SereniAI. How can I be most helpful today?",
+    "Hello! I'm SereniAI, your mental health ally. What would you like to focus on?",
+    "Hi there! SereniAI here, offering understanding and support. How's your day going?",
+    "Welcome! I'm your emotional support companion SereniAI. What's been on your mind lately?",
+    "Hello! This is SereniAI, providing a caring presence. How can I support you today?",
+    "Hi! Thank you for choosing SereniAI. Would you like to share what brings you here?",
+    "Greetings! I'm your AI companion SereniAI. How can I help you process your thoughts?",
+    "Welcome to our safe space! SereniAI here to listen and support. What's happening in your world?",
+    "Hello there! I'm SereniAI, your mental wellness partner. How are you feeling right now?",
+    "Hi! This is SereniAI, offering a judgment-free zone. What would you like to discuss?",
+    "Welcome! I'm your supportive companion SereniAI. How can I make this space more comfortable?",
+    "Greetings! SereniAI present and ready to help. What's been weighing on your mind?",
+    "Hello! Thank you for connecting with SereniAI. How can I support your emotional well-being?",
+    "Hi there! I'm your dedicated AI companion SereniAI. Would you like to share what's happening?",
+    "Welcome! This is SereniAI, creating a space for healing. How's everything going?",
+    "Hello! I'm SereniAI, here to provide understanding and support. What brings you here today?",
+    "Hi! SereniAI ready to listen and care. How can I help you navigate your feelings?",
+    "Greetings! Thank you for reaching out to SereniAI. What would you like to explore together?",
+    "Welcome to our conversation space! I'm SereniAI, offering support and guidance. How are you doing?",
+    "Hello there! This is SereniAI, your emotional support ally. What's been on your heart?",
+    "Hi! I'm your mental health companion SereniAI. How can I make this space most helpful for you?",
+    "Welcome! SereniAI here, providing a safe harbor for your thoughts. Would you like to share what's happening?",
+    "Greetings! I'm your supportive AI presence SereniAI. What's been going on in your life?",
+    "Hello! This is SereniAI, offering understanding and companionship. How are you feeling today?",
+    "Hi there! Thank you for choosing SereniAI. What would you like to focus on in our conversation?",
+    "Welcome! I'm your dedicated support companion SereniAI. How can I help you feel more heard?",
+    "Hello! SereniAI present and ready to support your journey. What brings you here?",
+    "Hi! This is SereniAI, creating a safe environment for expression. How's your day been?",
+    "Greetings! I'm your AI companion SereniAI. Would you like to share what's on your mind?",
+    "Welcome to our safe haven! SereniAI here to listen and understand. How can I support you today?",
+    "Hello there! Thank you for connecting with SereniAI. What's been happening in your world?",
+    "Hi! I'm your mental wellness partner SereniAI. How are you feeling right now?",
+    "Welcome! This is SereniAI, offering a space for open dialogue. What would you like to discuss?",
+    "Greetings! SereniAI ready to provide emotional support. How can I make this conversation helpful?"
+  ],
+"Work_Study_Impact": [
+    "I understand you're experiencing anxiety related to your work/studies. Let's explore how this is affecting you. Work and academic pressures can be particularly challenging because they often involve performance expectations, deadlines, and evaluation from others. First, let's identify specific situations that trigger your anxiety - whether it's presentations, deadlines, team interactions, or test-taking. Then we can develop targeted strategies to help you manage these situations while maintaining your performance. Remember, many successful professionals and students deal with similar challenges, and there are effective ways to handle this.",
+
+    "Let's take a moment to understand how anxiety is impacting your work or academic life. Many people find that anxiety affects their concentration, memory, and overall performance. Could you describe what you're experiencing? Are you noticing specific patterns, like increased anxiety before certain tasks or in particular situations? Understanding these patterns can help us develop effective coping strategies that work within your professional or academic environment. We can explore techniques that not only help manage anxiety but might even enhance your performance.",
+
+    "I hear that you're struggling with anxiety in your work/study environment. This is a common but challenging experience that deserves careful attention. Let's start by creating a safe space to explore how anxiety is manifesting in your professional or academic life. Are you experiencing physical symptoms like racing thoughts during meetings or exams? Or perhaps you're finding it difficult to concentrate on tasks? Together, we can develop strategies that help you maintain your performance while managing anxiety effectively. Many people find that with the right tools, they can not only cope with work/study anxiety but actually thrive.",
+
+    "Work and academic anxiety can be particularly challenging because these environments often demand our best performance. Let's work together to understand your specific situation. What aspects of your work or studies trigger the most anxiety? Is it specific tasks, interactions with colleagues/peers, or perhaps performance evaluations? Once we identify these triggers, we can develop personalized strategies to help you manage anxiety while maintaining your effectiveness. Remember, experiencing anxiety doesn't diminish your capabilities or potential for success.",
+
+    "Thank you for sharing your concerns about anxiety affecting your work or studies. This is an important area to address, as our professional and academic lives often require sustained focus and performance. Let's start by understanding your specific challenges. Are you finding it difficult to concentrate? Feeling overwhelmed by deadlines? Experiencing anxiety during presentations or exams? Together, we can develop practical strategies that fit into your daily routine and help you manage anxiety while maintaining your professional or academic performance. Many successful individuals have learned to work with their anxiety rather than against it."
+  ],
+"Behavioral_Responses": [
+    "It's natural to want to avoid anxiety-inducing situations, but facing them gradually can help you build resilience. \n\nStep 1: Start by identifying the specific situations that cause you anxiety. \nStep 2: Break these situations down into smaller, manageable steps. \nStep 3: Gradually expose yourself to these situations, starting with the least anxiety-provoking scenario. \n\nBy using Serenimind's gradual exposure techniques, you can work through these steps at your own pace, gradually reducing your anxiety and building confidence.",
+    
+    "Many people develop coping behaviors to handle anxiety, such as avoiding certain places or situations. \n\nStep 1: Reflect on and write down the situations or habits you tend to avoid due to anxiety. \nStep 2: Identify which of these habits are limiting your daily life. \nStep 3: Work on replacing avoidance behaviors with healthier coping mechanisms, such as deep breathing or mindfulness. \n\nSerenimind offers exercises that can help you replace these avoidance habits, making you feel more in control.",
+    
+    "Nervous habits like fidgeting or nail-biting are common signs of anxiety. \n\nStep 1: Observe your anxious behaviors and identify the triggers that cause them. \nStep 2: Replace these habits with healthier responses, like squeezing a stress ball, deep breathing, or progressive muscle relaxation. \nStep 3: Consistently practice these new behaviors whenever you feel anxious. \n\nSerenimind can help you track your progress and remind you to practice these new behaviors to reinforce positive changes.",
+    
+    "Avoiding anxiety-provoking situations is common, but over time, it can reinforce the fear. \n\nStep 1: Write down the situations that you tend to avoid and rank them based on how overwhelming they are. \nStep 2: Start facing these situations one by one, beginning with the least overwhelming. \nStep 3: As you gradually expose yourself to these situations, celebrate your progress and reflect on how you handled each one. \n\nSerenimind provides support through structured guidance and regular check-ins to help you feel confident throughout this process.",
+    
+    "When you feel stressed, your body may react in ways that you don't fully control, such as rapid heartbeat or shallow breathing. \n\nStep 1: Pay attention to your body’s stress signals, like a fast heartbeat or tight muscles. \nStep 2: Practice deep breathing exercises (e.g., inhale for 4 seconds, hold for 4 seconds, exhale for 4 seconds) to help calm your body. \nStep 3: Engage in progressive muscle relaxation to release built-up tension. \n\nSerenimind can guide you through these exercises with regular reminders to practice, helping you manage your stress responses more effectively.",
+    
+    "Anxiety can cause people to react in ways that feel out of control. Recognizing these reaction patterns is the first step to regaining control. \n\nStep 1: Keep a journal to track your anxiety responses, like avoidance or restlessness. \nStep 2: Identify patterns in your reactions and determine the triggers behind them. \nStep 3: Work on using techniques such as mindfulness, cognitive reframing, or relaxation exercises to break the pattern. \n\nSerenimind’s daily journaling prompts and cognitive techniques can help you stay on top of these patterns and regain control of your responses.",
+    
+    "Panic attacks often follow certain behavior patterns, like rapid breathing or avoidance. \n\nStep 1: Identify the early warning signs of an impending panic attack (e.g., rapid breathing, dizziness, or chest tightness). \nStep 2: Use grounding techniques such as the 5-4-3-2-1 method (identify 5 things you can see, 4 you can touch, etc.) to anchor yourself in the present moment. \nStep 3: Practice deep breathing to slow down your heart rate and manage the panic symptoms. \n\nSerenimind offers real-time support during panic moments, guiding you through these exercises and helping you regain calm.",
+    
+    "The way you respond to anxiety can vary from person to person. It's important to recognize your own anxiety responses to tailor strategies that work best for you. \n\nStep 1: Reflect on how you typically respond to anxiety (e.g., avoidance, irritability, or physical symptoms). \nStep 2: Identify the strategies that have worked for you in the past, such as deep breathing or cognitive restructuring. \nStep 3: Customize your coping plan with Serenimind, which allows you to set personalized strategies that align with your specific responses. \n\nThis tailored approach will help you handle anxiety more effectively over time.",
+    
+    "Stress can lead to habits that, while offering temporary relief, may not be effective long-term. \n\nStep 1: Identify stress-related habits that provide short-term relief but are not sustainable, such as overeating or excessive screen time. \nStep 2: Replace these habits with healthier stress-relief techniques, such as exercise, journaling, or engaging in hobbies. \nStep 3: Set achievable goals for incorporating these new habits into your daily routine. \n\nSerenimind offers guidance through habit tracking and progress monitoring to help you maintain healthy changes over the long term.",
+    
+    "Anxiety and panic can create specific behavior patterns that hold you back from feeling calm. Recognizing these patterns is the first step toward managing them. \n\nStep 1: Identify the specific behaviors that you notice when feeling anxious, like pacing or shallow breathing. \nStep 2: Practice breathing exercises and grounding techniques to break these patterns. \nStep 3: Work through gradual exposure to the situations that trigger your anxiety, so that you can respond in a more controlled manner. \n\nSerenimind provides step-by-step support and reminders to practice these techniques regularly, helping you build better coping patterns.",
+    
+    "Identifying your anxiety behaviors is the first step in breaking the cycle. Once you’ve recognized your triggers, Serenimind can help you develop healthier habits by implementing coping mechanisms like mindfulness, breathing exercises, or behavioral interventions designed to reduce the impact of anxiety on your life. \n\nStep 1: Track your anxiety behaviors and identify specific triggers. \nStep 2: Choose an alternative coping mechanism, such as breathing exercises or cognitive reframing, that works for you. \nStep 3: Practice these techniques whenever you encounter a trigger, gradually replacing the negative behaviors with healthier ones. \n\nSerenimind’s personalized approach ensures that you receive consistent support and feedback to make lasting changes.",
+    
+    "Sometimes, the avoidance of situations or people can be a sign of deeper anxiety. Acknowledging these avoidance behaviors is a crucial step towards regaining control. \n\nStep 1: Reflect on the situations or people you avoid due to anxiety and try to understand the underlying fears. \nStep 2: Start small by gradually confronting these fears in a controlled and safe environment. \nStep 3: Use Serenimind’s structured exposure plans and relaxation techniques to help you feel more comfortable as you face these deeper anxieties. \n\nBy taking small, manageable steps, you’ll begin to feel more in control and less overwhelmed by fear."
+  ],
+"Coping_Mechanisms": [
+    "Managing anxiety effectively is key to maintaining emotional stability. One of the most widely recognized techniques is deep breathing. By focusing on slow, deep breaths, you can activate your body’s natural relaxation response. A method you could try is the 4-7-8 technique: breathe in for 4 seconds, hold for 7 seconds, and exhale for 8 seconds. This helps calm the mind and regulate the nervous system, especially during moments of intense anxiety.",
+    
+    "Mindfulness is another valuable tool in anxiety management. A simple way to practice mindfulness is by focusing on the present moment and gently guiding your attention back whenever it wanders. A quick mindfulness exercise you can use is the '5-4-3-2-1 method,' where you identify 5 things you can see, 4 things you can touch, 3 things you can hear, 2 things you can smell, and 1 thing you can taste. This helps ground you in the present and reduce overwhelming thoughts.",
+    
+    "To combat anxiety, progressive muscle relaxation (PMR) is an excellent strategy. PMR involves tensing and relaxing different muscle groups in the body, helping to release physical tension associated with anxiety. Start by focusing on your feet and working your way up to your head. Tense each muscle group for 5 seconds, then release. This not only relieves tension but also improves awareness of physical sensations.",
+    
+    "Coping with panic attacks requires a calm approach. Grounding exercises like focusing on a physical object or touching something cold, such as an ice cube, can bring your awareness back to the present moment. Pair this with controlled breathing to help regulate your body’s response and reduce the intensity of the panic attack.",
+    
+    "In moments of high stress, using self-compassion can be incredibly effective. Remind yourself that it's okay to feel anxious and that your feelings are valid. Engage in positive self-talk by acknowledging your strength in facing these emotions and giving yourself grace. This can help break the cycle of negative self-criticism that often worsens anxiety.",
+    
+    "Physical exercise is another powerful anxiety management tool. Regular exercise releases endorphins, the body’s natural mood boosters. Even something as simple as a brisk walk or stretching exercises can help improve your emotional well-being and lower stress levels. Aim for at least 30 minutes of activity a day to help manage anxiety more effectively."
+  ],  
+  "Emotional_Responses": [
+    "When anxiety strikes, the emotional impact can often feel overwhelming. It's crucial to address these emotions head-on and not suppress them. Practice self-awareness by labeling your feelings, such as recognizing that you are feeling anxious, sad, or overwhelmed. By acknowledging these emotions, you can start to detach from them and manage their effects more effectively. Using techniques like breathing exercises or mindfulness can help regulate your emotional responses.",
+    
+    "The emotional toll of anxiety can manifest as fear, sadness, or irritability. It’s important to not only identify these emotions but also to understand where they’re coming from. Recognizing triggers for emotional distress can be a starting point in reducing their intensity. Cognitive Behavioral Therapy (CBT) techniques like thought reframing can be useful in challenging negative emotions and replacing them with more positive, balanced thoughts.",
+    
+    "If you're feeling emotionally drained by anxiety, journaling can be a powerful tool. Writing down your thoughts and emotions helps you process what you’re going through and can provide clarity on underlying issues. You could try journaling for 10-15 minutes daily, focusing on both what triggered your anxiety and what helped you feel better. This reflection can be an effective way to manage emotional responses over time.",
+    
+    "Stressful situations can lead to emotional exhaustion, but recognizing when you are nearing your emotional limits can help you manage this exhaustion. Practice taking breaks throughout your day to check in with your feelings. When you feel emotionally drained, engage in relaxation activities such as deep breathing or a hobby you enjoy to recharge and maintain emotional balance.",
+    
+    "Anxiety can also trigger feelings of frustration or anger. If you notice these emotions, it may help to practice self-compassion and remind yourself that it’s okay to experience these feelings. Taking a break from stressful situations and engaging in relaxation techniques like breathing exercises or stretching can help to manage anger and frustration caused by anxiety.",
+    
+    "Emotional resilience involves learning to manage and bounce back from challenging emotional responses. One effective approach is to cultivate a 'growth mindset.' This mindset encourages you to see challenges, including anxiety, as opportunities for growth and learning. Instead of seeing emotional setbacks as failures, try to view them as temporary and surmountable challenges that you can overcome with the right tools and mindset."
+  ],
+  "Sleep_Patterns": [
+    "Sleep disruptions caused by anxiety are common, but they can be managed. Creating a calming bedtime routine is essential for signaling your body that it’s time to wind down. Try engaging in relaxing activities like reading, stretching, or taking a warm bath an hour before bed. Avoid screens during this time as the blue light can interfere with melatonin production, making it harder to fall asleep. Consistency is key, so aim for a consistent bedtime and wake-up time each day to improve your overall sleep hygiene.",
+    
+    "If racing thoughts are preventing you from falling asleep, one solution is to practice a relaxation technique such as progressive muscle relaxation or deep breathing. Focus on relaxing each muscle group in your body, starting from your toes and working your way up to your head. This not only calms your body but also distracts your mind from anxious thoughts. Additionally, guided sleep meditation or calming music can help ease you into a restful sleep.",
+    
+    "To break the cycle of anxiety affecting your sleep, you might want to try cognitive behavioral strategies. Cognitive Behavioral Therapy for Insomnia (CBT-I) is a structured approach that focuses on changing negative thought patterns that interfere with sleep. By challenging thoughts such as 'I won’t sleep well' and replacing them with positive affirmations like 'I can rest and relax,' you can train your mind to relax before bed. Along with this, avoid caffeine or heavy meals late in the day.",
+    
+    "If anxiety wakes you up in the middle of the night, practicing a grounding exercise can help. Focus on a specific object in the room, or use the '5-4-3-2-1' technique to redirect your attention. Slowly acknowledging one sense at a time—what you can see, touch, hear, smell, and taste—can help ease your mind and reduce feelings of anxiety that might be keeping you awake.",
+    
+    "Sleep difficulties often arise due to a mix of anxiety and poor sleep habits. A good starting point is to establish a bedtime routine that signals to your body it’s time to relax. Turn off all electronic devices at least 30 minutes before bed to avoid disrupting your body’s natural circadian rhythm. Additionally, creating a comfortable sleep environment by adjusting the room temperature and reducing light exposure can further promote restful sleep."
+  ],
+  "Mindfulness_and_Relaxation": [
+    "Let's explore mindfulness and relaxation techniques together. These practices can be powerful tools for managing anxiety and finding inner calm. First, let's find a comfortable position and focus on your breath. Notice the natural rhythm of your breathing without trying to change it. As thoughts arise, acknowledge them gently and let them pass, like clouds in the sky. This simple practice can help ground you in the present moment and reduce anxiety. We can explore various techniques like body scans, guided imagery, or mindful walking to find what resonates most with you. Remember, mindfulness is a skill that develops with practice.",
+
+    "I understand you're interested in learning about mindfulness and relaxation. These practices can help create a sense of calm and balance in your life. Let's start with a basic mindfulness exercise: focus your attention on your breath, noticing the sensation of air moving in and out of your body. When your mind wanders (which is perfectly normal), gently bring your attention back to your breath. This simple practice can help reduce anxiety and increase your awareness of the present moment. We can explore various techniques and develop a regular practice that fits your lifestyle.",
+
+    "Thank you for showing interest in mindfulness and relaxation techniques. These practices can be valuable tools for managing anxiety and stress. Let's begin with understanding what mindfulness means: it's about being present in the current moment without judgment. We can practice this through various exercises like mindful breathing, body awareness, or gentle movement. Together, we'll explore different techniques and find what works best for you. Remember, there's no 'right' way to practice mindfulness – it's about finding what helps you feel more centered and calm.",
+
+    "Mindfulness and relaxation can be powerful allies in managing anxiety. Let's work on developing these skills together. We can start with a simple grounding exercise: notice five things you can see, four things you can touch, three things you can hear, two things you can smell, and one thing you can taste. This helps bring your attention to the present moment and away from anxious thoughts. We'll explore various techniques like progressive muscle relaxation, guided meditation, or mindful observation to build your relaxation toolkit.",
+
+    "I'm here to help you explore mindfulness and relaxation practices. These techniques can help reduce anxiety and create more peace in your daily life. Let's start with a basic relaxation exercise: take a deep breath in through your nose for four counts, hold for four, and exhale through your mouth for six counts. Notice how this simple practice affects your body and mind. We can build on this with various mindfulness techniques, helping you develop a regular practice that supports your emotional well-being. Remember, consistency is more important than perfection in mindfulness practice."
+  ],
+"Self_Awareness": [
+    "I notice you're taking time to check in with yourself, which is a crucial step in emotional wellness. Let's explore your current emotional state together. Sometimes our feelings can be complex, like layers of an onion, and it's helpful to peel them back one at a time. Would you like to start by focusing on your physical sensations, your thoughts, or your emotions? Remember, there's no right or wrong way to feel - all emotions are valid and worthy of attention.",
+    
+    "Taking a moment for self-reflection is a powerful practice. As we explore your current state, consider not just what you're feeling, but also what might have contributed to these emotions. Think about your day so far - have there been any particular triggers or situations that stand out? Understanding these patterns can help us develop better strategies for managing your emotional well-being. Let's take this journey of self-discovery together.",
+    
+    "It's wonderful that you're practicing self-awareness. This is like being an emotional scientist - observing and collecting data about your inner experience. Let's start by creating a gentle space for exploration. Take a few deep breaths, and as you do, notice what's happening in your body. Are there areas of tension or comfort? What thoughts are passing through your mind? What emotions are present? Each observation helps build a clearer picture of your current state.",
+    
+    "Checking in with yourself is a vital skill that gets stronger with practice. As we explore your current emotional landscape, try to approach your feelings with curiosity rather than judgment. Imagine you're sitting by a stream, watching your thoughts and emotions float by like leaves on the water. What do you notice? Are there certain emotions that feel stronger than others? How long have these feelings been present? Understanding these patterns can provide valuable insights into your emotional well-being.",
+    
+    "Self-awareness is like building a map of your inner world. Right now, we're going to take some time to explore that terrain together. Start by noticing your breath - is it shallow or deep? Fast or slow? Then, scan your body from head to toe, noting any physical sensations. What emotions are you experiencing? Are they familiar companions or unexpected visitors? This kind of gentle exploration helps us understand ourselves better and make more informed choices about our well-being."
+  ],
+  "Resources_and_Education": [
+    "I understand you're seeking information about anxiety, and that's a significant step toward better understanding and management. Let me share some comprehensive resources with you. First, it's important to understand that anxiety is a natural response of our body's fight-or-flight system. When we experience anxiety, our body is trying to protect us, even though it might not feel helpful in the moment. Let's explore some evidence-based information about how anxiety works in our brain and body, and then we can discuss specific strategies that might work for your situation. Would you like to start with the biological basics of anxiety, or would you prefer to focus on practical management techniques?",
+    
+    "Knowledge is a powerful tool in managing anxiety, and I'm here to help you build that foundation. Let's start by understanding that anxiety exists on a spectrum - from mild unease to panic attacks - and each person's experience is unique. I have access to research-backed information about different types of anxiety, their triggers, and various management approaches. We can explore everything from cognitive-behavioral techniques to mindfulness practices, medication options, and lifestyle modifications. What specific aspect of anxiety would you like to learn more about first? Remember, learning about anxiety often helps reduce its power over us.",
+    
+    "I'm glad you're reaching out to learn more about managing anxiety. Let me share some valuable resources with you. First, it's helpful to understand that anxiety is not a sign of weakness - it's a common human experience that affects millions of people worldwide. I can provide information about different therapeutic approaches, self-help strategies, and the latest research on anxiety management. We can also explore how lifestyle factors like sleep, nutrition, and exercise play crucial roles in anxiety levels. Would you like to start with understanding the science behind anxiety, or would you prefer to focus on practical coping strategies?",
+    
+    "Thank you for seeking information about anxiety. Let's build your knowledge base together. Understanding anxiety is like putting together a puzzle - each piece of information helps create a clearer picture. I can share resources about the physiological aspects of anxiety, common triggers, and evidence-based treatment options. We'll also explore how different aspects of your life - from sleep patterns to social connections - can impact anxiety levels. What specific area would you like to focus on first? Remember, learning about anxiety is often the first step toward better management.",
+    
+    "I appreciate your interest in learning more about anxiety management. Let me provide you with some comprehensive resources. We'll start by understanding that anxiety is not just a mental experience - it affects our whole body, from our thoughts to our physical sensations. I can share information about different types of anxiety disorders, common symptoms, and various treatment approaches. We'll also explore practical strategies you can implement in your daily life. Would you like to begin with understanding the basics of anxiety, or shall we focus on specific management techniques?"
+  ],
+  "Real_Time_Techniques": [
+    "I hear that you need support right now, and I'm here to help you through this moment. Let's start with a comprehensive grounding technique that engages all your senses. First, find a comfortable position and take a deep breath. Now, let's practice the enhanced 5-4-3-2-1 method:\nLook around and name 5 things you can see in detail - notice their colors, shapes, and textures.\nNext, identify 4 things you can physically feel - perhaps the texture of your clothing, the temperature of the air, or the surface you're sitting on.\nListen for 3 distinct sounds in your environment, even subtle ones like the hum of electronics or your own breath.\nTry to notice 2 different scents around you, even if they're faint.\nFinally, focus on 1 taste in your mouth. Take another deep breath and notice how your body feels now compared to when we started.",
+
+    "Let's work together to help you find calm in this moment. We'll begin with a progressive muscle relaxation technique that helps release physical tension while calming your mind.\nStart by sitting or lying comfortably. Take a deep breath in through your nose for 4 counts, hold for 4, and exhale slowly through your mouth for 6 counts.\nNow, we'll systematically tense and relax each muscle group. Start with your toes - curl them tightly for 5 seconds, then release. Notice the difference between tension and relaxation.\nMove to your feet, then ankles, calves, and continue up your body.\nWith each release, imagine stress flowing away from your body. Remember, you're safe right now, and this feeling will pass.",
+
+    "I understand you're looking for immediate relief, and I'm here to guide you through some effective techniques. Let's start with a powerful breathing exercise called 'Square Breathing.'\nImagine tracing a square in front of you with your eyes or finger. As you trace the first side, breathe in for 4 counts. Hold your breath for 4 counts as you trace the second side.\nExhale for 4 counts along the third side, and hold for 4 counts on the final side.\nLet's repeat this cycle 4 times. Pay attention to how the rhythm of your breath becomes more regular with each cycle.\nNotice how your shoulders begin to relax and your mind becomes more focused on the present moment.",
+
+    "I'm here to help you through this challenging moment. Let's use a comprehensive approach combining physical and mental techniques.\nFirst, place both feet firmly on the ground and feel the solid support beneath you.\nNow, place one hand on your chest and the other on your belly. We'll practice diaphragmatic breathing - breathe in slowly through your nose, letting your belly expand while your chest remains relatively still.\nHold for a moment, then exhale slowly through pursed lips, feeling your belly fall.\nAs you continue this breathing pattern, let's add a positive affirmation: 'I am safe,' on the inhale, and 'I can handle this,' on the exhale.\nRemember, anxiety is temporary, and you have the tools to move through it.",
+
+    "Let's work together to help you find some relief right now. We'll use a combination of mindfulness and body-based techniques.\nStart by finding a comfortable position and closing your eyes if that feels safe.\nTake a moment to notice where you feel anxiety in your body - perhaps it's a tightness in your chest, butterflies in your stomach, or tension in your shoulders.\nDon't try to change these sensations yet; just observe them with curiosity.\nNow, imagine you have a warm, healing light in your hands.\nAs you breathe deeply, imagine this light flowing to those areas of tension, gradually softening and soothing them.\nWith each exhale, feel the tension dissolving a little more."
+],
+ "Feedback_and_Improvement": [
+        "Thank you for your feedback. Based on your experience, we’ve prioritized actionable changes. For example, if the interface felt overwhelming, we recommend simplifying the navigation or highlighting the most-used features upfront. Your suggestion helps us implement clearer sections and tooltips to improve user experience. Additionally, we are adding more personalized mental health resources to better align with user needs.",
+        
+        "Your insights are deeply appreciated. For instance, if you've mentioned difficulty in finding resources, we’ve updated our search functionality to include categorized tags like 'Anxiety Support,' 'Breathing Exercises,' or 'Mindfulness Games.' This ensures easier access to specific content. Thank you for helping us refine this process further.",
+        
+        "Your feedback is crucial. If content clarity is a concern, we've implemented AI-driven content summaries to provide concise overviews of each resource. This way, users can quickly decide if a resource suits their needs. Your suggestions help us fine-tune these features to make Serenimind even more helpful.",
+        
+        "Thank you for highlighting areas of improvement. If accessibility was mentioned, we've added features such as adjustable font sizes, dark mode, and audio guides for all sections. These updates ensure Serenimind is inclusive and user-friendly. Your feedback drives these enhancements forward.",
+        
+        "We’re grateful for your feedback, especially about improving engagement. To address this, we’ve integrated daily motivational notifications and quick self-assessment tools. These features aim to keep users connected and supported throughout their mental health journey. Your feedback helps us refine and enhance these tools."
+    ],   
+    "Environmental_Triggers": [
+        "It seems your environment is causing stress. One immediate solution is to practice grounding techniques like the '5-4-3-2-1' exercise. This involves identifying five things you see, four things you touch, three things you hear, two things you smell, and one thing you taste. This method can help you anchor yourself in the moment and reduce the impact of environmental triggers.",
+        
+        "To address triggers like noise or crowds, Serenimind offers a curated list of calming playlists and mindfulness podcasts accessible through the app. Additionally, noise-canceling headphones or planning breaks during crowded situations can provide relief. Let’s implement these changes together.",
+        
+        "Bright lights or overstimulating environments can be overwhelming. Serenimind recommends creating a 'Calm Kit'—a collection of items like sunglasses, a calming scent, or a stress ball. You can customize the kit with Serenimind’s guided suggestions tailored to your triggers.",
+        
+        "If your surroundings are stressful, try creating a 'Safe Space' at home. Serenimind provides step-by-step guides to set up areas with soft lighting, soothing colors, and items that bring you peace. This designated space can serve as your retreat when things feel overwhelming.",
+        
+        "Managing environmental stressors often starts with preparation. Serenimind’s environment planner tool allows you to input potential stressors and receive tailored coping strategies. For instance, if noise is a trigger, it will suggest noise-dampening materials or apps for sound masking."
+    ],   
+    "Past_Experiences": [
+        "Your past experiences may influence your present, but they don’t define your future. Serenimind offers journaling templates designed to help you process those experiences step-by-step. Writing can help clarify emotions and uncover patterns, giving you control over your narrative.",
+        
+        "Reflecting on the past is a courageous step. Serenimind provides interactive exercises such as rewriting past experiences with a focus on lessons learned and strengths gained. This can help shift your perspective from regret to resilience.",
+        
+        "Understanding how the past impacts the present is vital. Serenimind’s guided meditation sessions specifically address letting go of past emotional burdens. These sessions include techniques like visualization and affirmations to help you move forward.",
+        
+        "To support healing from past challenges, Serenimind offers a 'Strength Map' tool. This feature highlights personal milestones and strengths developed through adversity, giving you a visual representation of how far you’ve come.",
+        
+        "Processing past experiences takes time. Serenimind integrates CBT-inspired exercises to help reframe negative thoughts. For example, you can list an event, identify unhelpful thoughts, and replace them with constructive alternatives—all within the app."
     ],
-    'farewell': [
-        "Goodbye! Take care and remember, you're stronger than you think.",
-        "See you later. Remember, I'm here if you need to talk.",
-        "Farewell for now. Stay positive and keep moving forward!",
-        "Until next time! Don't forget to practice self-care.",
-        "Take care! Remember, every day is a new opportunity."
+    "Professional_Help": [
+    "Seeking professional support is a courageous step. You can book a mental health professional through Serenimind or call +2347078634362 for immediate assistance. You can also email team@serenimind.com.ng. How can I help you get started?",
+    "Talking to a professional can provide tools and insights to navigate your challenges. Book a session on Serenimind, call +2347078634362, or email team@serenimind.com.ng for guidance.",
+    "A therapist or counselor could offer valuable support tailored to your needs. Visit Serenimind to book, call +2347078634362, or reach out via team@serenimind.com.ng to take the next step.",
+    "It's okay to seek help when you need it. You can book a session with Serenimind, call +2347078634362, or email team@serenimind.com.ng for assistance in finding the right support.",
+    "Professional guidance can make a big difference in managing stress and anxiety. Book a professional through Serenimind or get in touch at +2347078634362 or team@serenimind.com.ng.",
+    "Finding the right mental health professional can feel daunting, but you’re not alone. Serenimind can help you. Book now, call +2347078634362, or email team@serenimind.com.ng.",
+    "Taking the step to reach out for professional support shows strength. You can book a mental health professional with Serenimind, call +2347078634362, or contact team@serenimind.com.ng for assistance.",
+    "Therapy can offer a safe space to work through your feelings. Book your session on Serenimind, call +2347078634362, or email team@serenimind.com.ng to start your journey.",
+    "Counselors and specialists are there to support you. Let me guide you through Serenimind to book a session, or call +2347078634362 or email team@serenimind.com.ng.",
+    "Professional help can be a key part of your journey. Book with Serenimind, contact +2347078634362, or email team@serenimind.com.ng to find the resources you need."
+],
+"Motivational_Support": [
+        "You’re doing better than you think. Every small step you take is progress, and I’m here to cheer you on.\n\n"
+        "Sometimes the smallest actions, like taking a deep breath or pausing for a moment, can make a huge difference.",
+
+        "Remember, challenges are opportunities for growth. You’ve got this, and I believe in your strength.\n\n"
+        "When things feel overwhelming, focus on what you can control, even if it’s just one small thing.",
+
+        "Even on the toughest days, your effort matters. Keep going—your resilience is inspiring.\n\n"
+        "Take pride in every moment you show up for yourself, no matter how small it seems.",
+
+        "Every day is a new chance to start fresh. Trust in your ability to navigate whatever comes your way.\n\n"
+        "What’s one small thing you can do today to care for yourself?",
+
+        "You are capable of amazing things. Let’s focus on the next step, one moment at a time.\n\n"
+        "Small steps forward lead to big changes over time. Keep moving at your own pace.",
+
+        "It’s okay to need encouragement. You’re not alone, and I’m here to support you through every moment.\n\n"
+        "Lean into the support around you—it’s a strength to ask for help when you need it.",
+
+        "Believe in your progress, no matter how small it seems. You’re stronger than you realize.\n\n"
+        "What’s one accomplishment, no matter how small, that you can celebrate today?",
+
+        "Your journey is unique, and every step forward counts. Let’s celebrate your efforts together.\n\n"
+        "Progress isn’t always linear, but every moment you try is a step in the right direction.",
+
+        "Motivation might waver, but your potential is limitless. Take it one day at a time—you’ve got this.\n\n"
+        "When things feel uncertain, remember to focus on what brings you joy or peace, even for a moment.",
+
+        "Positive energy starts with a single thought. What’s one small thing you can feel proud of today?\n\n"
+        "Acknowledging the good, even in the smallest forms, can shift your perspective."
     ],
-    'thanks': [
-        "You're welcome! I'm glad I could help.",
-        "It's my pleasure. Remember, you're doing great!",
-        "I'm happy to assist. Keep up the good work!",
-        "Anytime! Your well-being is important to me.",
-        "No need to thank me. You're the one doing the hard work!"
+    "General_Anxiety_Assessment": [
+        "It’s understandable to feel the need to assess your anxiety. While I can’t provide a diagnosis, I can guide you to recognize patterns and symptoms that might indicate anxiety.\n\n"
+        "Would you like to explore an assessment tool together or discuss specific symptoms you’ve noticed?",
+
+        "Anxiety can vary greatly from person to person. Identifying its severity often starts with recognizing how it impacts your daily life.\n\n"
+        "Would you like to talk about how you’ve been feeling lately or explore self-assessment options?",
+
+        "If you’re wondering about your anxiety levels, we can explore your recent experiences and reactions together.\n\n"
+        "Remember, understanding your mental health is a courageous step. Let’s talk through it if you’re ready.",
+
+        "Assessing your mental state can provide clarity and direction for addressing your concerns. I can help you identify common symptoms and patterns of anxiety.\n\n"
+        "Would you like to begin?",
+
+        "Understanding whether you’re experiencing anxiety can feel overwhelming, but you’re not alone.\n\n"
+        "I can guide you through questions and resources that might help bring some clarity. Let’s take it one step at a time."
     ],
-    'help': [
-        "I'm here to help. What's on your mind?",
-        "How can I assist you today? I'm all ears.",
-        "I'm here to support you. What would you like to talk about?",
-        "Let's work through this together. What's troubling you?",
-        "I'm your AI companion, ready to help. What do you need?"
+    "Triggers_and_Causes": [
+        "Understanding the causes of anxiety is a significant step toward managing it. Often, anxiety is triggered by certain situations, environments, or recurring thoughts.\n\n"
+        "One way to address this is by maintaining a journal where you document moments of anxiety. Write down the situation, how you felt, and what you were thinking at that moment. Over time, patterns may emerge, helping you pinpoint specific triggers.\n\n"
+        "Once identified, you can work on minimizing exposure to these triggers or developing coping strategies, such as preparing yourself mentally before entering such situations.",
+
+        "Anxiety triggers can be subtle, but recognizing them can empower you. Pay attention to situations or activities that consistently make you feel uneasy.\n\n"
+        "For instance, if social interactions cause anxiety, you can practice by starting small, like engaging in one-on-one conversations before larger group settings. If the triggers stem from work or academic pressure, break your tasks into smaller, manageable chunks to reduce overwhelm.\n\n"
+        "Seeking professional guidance to help you navigate and manage these triggers can also be highly beneficial.",
+
+        "Pinpointing the triggers for your anxiety can be challenging but is crucial for building resilience. Start by reflecting on recent situations where anxiety spiked. Were there specific thoughts, events, or even physical sensations that preceded the feeling?\n\n"
+        "Consider keeping a mental or written log of these moments. Once you recognize a trigger, work on desensitizing yourself to it through gradual exposure or reframing your thoughts about it.\n\n"
+        "For example, if public speaking is a trigger, practice speaking in front of friends or a mirror before addressing a larger audience.",
+
+        "Anxiety triggers can sometimes be linked to unresolved emotions or past experiences. Reflect on whether certain situations remind you of previous challenges or fears.\n\n"
+        "Addressing these underlying causes through self-reflection or therapy can bring clarity and relief. For example, if crowded spaces make you anxious, it could be tied to a feeling of being out of control. In such cases, learning breathing techniques and grounding exercises can help you regain control over your body and mind.",
+
+        "Recognizing anxiety triggers is the first step toward managing them effectively. Common triggers include lack of sleep, excessive caffeine, or even certain news or media content.\n\n"
+        "Start by examining your daily habits and routines. Reducing caffeine, setting a regular sleep schedule, or limiting exposure to distressing news might make a big difference. It’s also important to share your feelings with a trusted friend, mentor, or professional to gain additional insights and support."
     ],
-    'feeling_good': [
-        "That's wonderful to hear! What's contributing to your positive mood?",
-        "I'm so glad you're feeling good. What's been going well for you?",
-        "It's great that you're in a good mood! How can we maintain this positive energy?",
-        "Fantastic! Positive feelings are worth celebrating. What's making you feel this way?",
-        "That's excellent! Let's build on this positive feeling. What's your next goal?"
+
+    "Physical_Symptoms": [
+        "Anxiety often presents physical symptoms such as a racing heart, tense muscles, or shortness of breath. Recognizing these signs is key to addressing them effectively.\n\n"
+        "If you notice your heart racing, try deep breathing exercises to calm your nervous system. Inhale deeply through your nose for four seconds, hold for four seconds, and exhale through your mouth for six seconds. Repeating this a few times can help reduce the intensity of your symptoms.",
+
+        "Physical symptoms like headaches, stomach discomfort, or muscle tension can be overwhelming. To manage these, start by identifying when these symptoms occur. Are they linked to specific situations or thoughts?\n\n"
+        "Progressive muscle relaxation (PMR) can be highly effective. This involves tensing and relaxing different muscle groups in your body, starting from your toes and moving upward. It helps release built-up tension and promotes relaxation.",
+
+        "If you experience physical signs such as sweating, trembling, or fatigue, it may help to engage in regular physical activity. Exercise, like walking, yoga, or stretching, can reduce anxiety by releasing endorphins and lowering cortisol levels.\n\n"
+        "Additionally, staying hydrated and maintaining a balanced diet can play a vital role in stabilizing your body's responses to stress.",
+
+        "Difficulty sleeping or chest tightness can be common physical symptoms of anxiety. To address this, create a bedtime routine that promotes relaxation. Avoid screens an hour before sleep, dim the lights, and try reading or meditating to calm your mind.\n\n"
+        "If chest tightness persists, grounding techniques, such as focusing on your surroundings (naming objects you see, hear, or feel), can help shift your attention away from anxious thoughts.",
+
+        "Physical signs like dizziness or restlessness can be addressed by ensuring proper hydration and taking short breaks during stressful activities. Sometimes, simply stepping outside for fresh air or a quick walk can help re-center your mind and body.\n\n"
+        "If these symptoms occur frequently, consider consulting with a healthcare provider to rule out other causes and develop a more tailored strategy."
     ],
-    'feeling_bad': [
-        "I'm sorry to hear that. Would you like to talk about what's bothering you?",
-        "It's okay to feel down sometimes. Can you tell me more about what's going on?",
-        "I'm here to listen. What do you think is causing these negative feelings?",
-        "Your feelings are valid. Let's explore what's troubling you and see if we can find a way forward.",
-        "Thank you for sharing. It takes courage to admit when we're not feeling our best. How can I support you?"
+
+    "Cognitive_Symptoms": [
+        "Racing thoughts and persistent worry are common cognitive symptoms of anxiety. When you notice your mind spiraling, try practicing mindfulness.\n\n"
+        "Mindfulness involves focusing your attention on the present moment, such as observing your breathing or the sensations in your body. Apps like Headspace or Calm can guide you through mindfulness exercises and help quiet racing thoughts.",
+
+        "If anxiety is affecting your ability to concentrate, breaking tasks into smaller, manageable steps can help. Write down a simple to-do list and focus on completing one task at a time.\n\n"
+        "Using a timer for short, focused work sessions (like the Pomodoro Technique) can help you stay on track without feeling overwhelmed.",
+
+        "Persistent overthinking or fear of worst-case scenarios can be mentally exhausting. To combat this, try cognitive restructuring. Write down the anxious thought, then challenge it with evidence or a more balanced perspective.\n\n"
+        "For example, if you think, 'I will fail this task,' counter it with 'I’ve prepared well, and I can ask for help if needed.' This practice can help reframe negative thoughts into more constructive ones.",
+
+        "When your mind feels foggy or stuck in a loop of negative thinking, engaging in creative activities like journaling, drawing, or even listening to music can help redirect your focus.\n\n"
+        "Additionally, practicing gratitude by listing three things you’re thankful for each day can shift your mindset to a more positive outlook.",
+
+        "Thoughts spiraling out of control can feel overwhelming, but structured breathing or visualization exercises can help.\n\n"
+        "Try imagining a peaceful scene, like a beach or forest, and focus on the details: the sounds, colors, and smells. This mental imagery can help break the cycle of anxious thoughts and provide a sense of calm."
     ],
-    'question': [
-        "That's an interesting question. Can you provide more context?",
-        "I'd be happy to help answer that. Could you give me more details?",
-        "Great question! Let's explore that together. What specifically would you like to know?",
-        "Questions are the first step to understanding. Can you elaborate on what you're asking?",
-        "I'm here to help you find answers. Can you tell me more about what prompted this question?"
+    "Social_Impact": [
+        "Social connections are vital to your mental well-being, as they offer emotional support, a sense of belonging, and practical assistance in times of need. If you’re feeling isolated, start small.\n\n"
+        "1. Reach Out to Trusted Individuals: Make a list of people you trust, whether they’re friends, family members, or colleagues. Begin by sending a simple message, like 'Hi, I was thinking about you and wanted to check in.' Small steps can rebuild connections over time.\n\n"
+        "2. Join a Community or Support Group: Look for local or online support groups that match your interests or challenges. For example, joining mental health forums, hobby-based groups, or community volunteer programs can help you connect with like-minded individuals.\n\n"
+        "3. Practice Open Communication: Share your feelings with someone you trust. You don’t have to share everything at once; even small admissions like, 'I’ve been feeling a bit down lately,' can foster understanding and emotional support.\n\n"
+        "4. Limit Social Media Usage: Social media can sometimes worsen feelings of isolation. Consider reducing your time online and focusing on in-person or one-on-one connections.\n\n"
+        "5. Professional Guidance: If social anxiety or past trauma is making connections difficult, a therapist can provide practical tools like cognitive behavioral techniques to address these challenges.\n\n"
+        "Remember, rebuilding social relationships takes time, but with consistent effort, you can create meaningful and supportive connections."
     ],
-    'stress': [
-        "It sounds like you're under a lot of pressure. Let's talk about some stress management techniques.",
-        "Feeling overwhelmed is common. Have you tried any relaxation exercises?",
-        "Stress can be challenging. Would you like to explore some coping strategies together?",
-        "I hear you're feeling stressed. Let's break down what's causing this and address each part.",
-        "Managing stress is important for your well-being. How about we discuss some self-care practices?"
+    "Severity_and_Frequency": [
+        "Understanding the severity and frequency of your symptoms is crucial for creating an effective plan to manage them. Here’s a detailed guide to help:\n\n"
+        "1. Keep a Symptom Journal:\n"
+        "   - Track when symptoms occur, their intensity (on a scale of 1 to 10), and the circumstances leading up to them. For example, note if stress, diet, sleep patterns, or specific events trigger your symptoms. Journaling provides insights into patterns and triggers.\n\n"
+        "2. Adopt Lifestyle Changes:\n"
+        "   - Sleep: Create a consistent sleep routine, aiming for 7-9 hours per night. Avoid screens 1 hour before bed and try relaxing activities like reading or meditation.\n"
+        "   - Diet: Incorporate mood-boosting foods rich in omega-3s (like salmon), magnesium (spinach, nuts), and vitamin D (sunlight or supplements). Reduce caffeine and sugar intake to stabilize energy levels.\n"
+        "   - Exercise: Engage in at least 30 minutes of moderate exercise (like walking or yoga) 5 times a week. Exercise boosts endorphins and can reduce the frequency of symptoms over time.\n\n"
+        "3. Implement Stress-Relief Practices:\n"
+        "   - Mindfulness Meditation: Spend 10-15 minutes daily focusing on your breath or practicing body scans. Apps like Headspace or Calm can guide you through the process.\n"
+        "   - Deep Breathing Exercises: Practice diaphragmatic breathing by inhaling deeply for 4 counts, holding for 4 counts, and exhaling for 6 counts. This calms the nervous system and reduces stress.\n\n"
+        "4. Identify and Manage Triggers:\n"
+        "   - Review your journal for common triggers. For example, if crowded spaces trigger symptoms, try gradual exposure therapy where you slowly build tolerance to those environments.\n"
+        "   - Develop an action plan for high-stress situations. For instance, if deadlines increase symptoms, break tasks into smaller steps and allocate more time for completion.\n\n"
+        "5. Seek Professional Help:\n"
+        "   - For severe symptoms that interfere with daily life, consult a mental health professional. They may recommend therapies such as Cognitive Behavioral Therapy (CBT), medications, or a combination tailored to your needs.\n"
+        "   - Therapists can also teach coping strategies for symptom management and provide a safe space for exploring underlying issues.\n\n"
+        "6. Engage in Peer Support:\n"
+        "   - Sometimes, talking to others who have experienced similar challenges can be incredibly validating and helpful. Join support groups where members share coping techniques and offer encouragement.\n\n"
+        "Severity and frequency can feel overwhelming, but consistent application of these techniques, along with professional guidance, can help reduce their impact and improve overall well-being."
     ],
-    'sleep_issues': [
-        "Sleep problems can be frustrating. Have you established a regular sleep routine?",
-        "Trouble sleeping can affect your whole day. Let's talk about some sleep hygiene tips.",
-        "Insomnia can be challenging. Have you considered trying relaxation techniques before bed?",
-        "Sleep is crucial for mental health. Would you like to explore some natural sleep aids?",
-        "Waking up tired can be tough. Let's discuss ways to improve your sleep quality."
-    ],
-    'relationship': [
-        "Relationship challenges can be difficult. Would you like to talk more about what's happening?",
-        "I'm sorry you're experiencing relationship troubles. How long has this been going on?",
-        "Relationship issues can be complex. Have you considered couples counseling?",
-        "It's brave of you to address your relationship concerns. What do you think is at the root of the problem?",
-        "Navigating relationships can be tough. Let's discuss some communication strategies that might help."
-    ],
-    'work': [
-        "Work-related stress is common. How do you usually cope with job pressure?",
-        "Career changes can be both exciting and scary. What's motivating this change?",
-        "Balancing work and life can be challenging. Would you like to explore some time management techniques?",
-        "I'm sorry to hear about your workplace issues. Have you spoken with HR or a supervisor about this?",
-        "Unemployment can be stressful. Let's talk about strategies for job searching and maintaining positivity."
-    ],
-    'health': [
-        "Health concerns can be worrying. Have you consulted with a healthcare professional about this?",
-        "Chronic pain can be challenging to manage. Are you interested in discussing some pain management techniques?",
-        "I understand your health anxiety. Would you like to explore some ways to manage these feelings?",
-        "Living with a disability presents unique challenges. How can I support you in navigating this?",
-        "Your health is important. Let's talk about ways to prioritize your well-being while managing your condition."
-    ],
-    'self_improvement': [
-        "It's great that you want to improve yourself! What specific areas are you looking to develop?",
-        "Personal growth is a journey. What inspired you to focus on self-improvement?",
-        "Learning new skills can be exciting. Do you have any specific goals in mind?",
-        "Self-development is a positive step. How do you plan to track your progress?",
-        "It's admirable that you're focusing on personal growth. What's the first small step you can take today?"
-    ],
-    'meditation': [
-        "Meditation can be a powerful tool for mental health. Have you tried any guided meditation apps?",
-        "Mindfulness practices can help calm the mind. Would you like to try a short breathing exercise?",
-        "Learning to meditate takes time and patience. What has been your experience so far?",
-        "Relaxation techniques can be very beneficial. Are you interested in learning about progressive muscle relaxation?",
-        "Calming the mind through meditation is a valuable skill. How about we start with a simple 5-minute mindfulness exercise?"
-    ],
-    'exercise': [
-        "Regular exercise is great for both physical and mental health. What types of activities do you enjoy?",
-        "Starting a workout routine can be challenging. How about we discuss some simple exercises to begin with?",
-        "Staying motivated to exercise isn't always easy. Would you like to explore some strategies to keep yourself going?",
-        "Physical activity is a great mood booster. Have you considered joining any sports or fitness classes?",
-        "Finding time for exercise can be tough. Let's brainstorm some ways to incorporate more movement into your daily routine."
-    ],
-    'nutrition': [
-        "Healthy eating plays a big role in overall well-being. Would you like to discuss some balanced meal ideas?",
-        "Diet can significantly impact mood and energy levels. How would you describe your current eating habits?",
-        "Nutritional information can be overwhelming. Are there specific areas of your diet you'd like to improve?",
-        "The connection between food and mood is strong. Have you noticed any foods that seem to affect how you feel?",
-        "Making dietary changes can be challenging. Let's start by talking about small, sustainable changes you can make."
-    ],
-    'motivation': [
-        "Lack of motivation can be frustrating. What usually helps you feel motivated?",
-        "Setting and achieving goals can boost motivation. Would you like to discuss goal-setting strategies?",
-        "Sometimes motivation comes after we start acting. How about we break down your goal into smaller, manageable tasks?",
-        "Staying motivated is an ongoing process. Have you tried using a reward system for accomplishing tasks?",
-        "It's normal for motivation to fluctuate. Let's explore some techniques to help you stay on track with your objectives."
-    ],
-    'anger': [
-        "Managing anger can be challenging. Have you identified any specific triggers for your anger?",
-        "Learning to control your temper is a valuable skill. Would you like to discuss some anger management techniques?",
-        "Feeling frequently frustrated can be tough. How do you typically express your anger?",
-        "Dealing with rage in a healthy way is important. Let's talk about some strategies to help you cool down when you're angry.",
-        "Anger often masks other emotions. Can we explore what might be beneath your anger?"
-    ],
-    'anxiety': [
-        "Anxiety can be overwhelming. Have you tried any relaxation techniques to manage your anxiety?",
-        "Feeling anxious is a common experience. Would you like to discuss some coping strategies?",
-        "Panic attacks can be scary. Let's talk about some grounding techniques that might help during an attack.",
-        "Social anxiety can be challenging. How does it typically affect your daily life?",
-        "Excessive worry can be draining. Have you considered keeping a worry journal to track your anxious thoughts?"
-    ],
-    'depression': [
-        "I'm sorry you're dealing with depression. Have you been able to talk to a mental health professional about how you're feeling?",
-        "Feeling hopeless can be really tough. Can you tell me more about what's been going on?",
-        "Loss of interest in activities is a common symptom of depression. Are there any activities you used to enjoy?",
-        "Persistent sadness is difficult to handle alone. Would you like to explore some self-care strategies that might help?",
-        "Depression is a serious condition, but there is hope. How can I support you in seeking help or treatment?"
+"Depression_Symptoms": [
+    "Depression can often feel overwhelming, but recognizing the symptoms is the first step towards healing. Common signs include persistent feelings of sadness, loss of interest in activities, and difficulty concentrating. You may also experience changes in appetite, sleep disturbances, or a general sense of fatigue. It’s important to pay attention to how you’re feeling and to seek help early. Start by reaching out to someone you trust and sharing your emotions. Additionally, creating a routine, even if it's a small one, can help to restore a sense of control. If you’re struggling, booking a session with a therapist through Serenimind can provide personalized support to navigate through these feelings.",
+    
+    "It's okay to feel like you’re carrying a heavy weight when dealing with depression. Some signs to look for are consistent low moods, hopelessness, or withdrawal from social activities. These feelings are valid, but they don’t define you. Focus on taking small steps – even something as simple as getting out of bed and stretching can begin to make a difference. If you're noticing these symptoms, it’s important to seek professional help. A therapist at Serenimind can work with you to develop coping strategies and help you manage the emotional weight you may be carrying."
+],
+
+"Depression_Coping_Strategies": [
+    "Coping with depression requires a multi-faceted approach that includes both physical and emotional strategies. Start by creating a daily routine, as structure can provide a sense of stability. Aim to get up at the same time each day, take small walks, and make time for hobbies, even if they don’t seem appealing at first. It’s essential to challenge negative thinking patterns by focusing on your strengths and reminding yourself of past accomplishments. Journaling your feelings and engaging in creative outlets can also help you process emotions. If you find it difficult to navigate these strategies alone, Serenimind can connect you with a therapist who can provide guidance and support tailored to your needs.",
+    
+    "When dealing with depression, it’s vital to remember that healing takes time. One strategy is practicing mindfulness to become more present in the moment, reducing feelings of overwhelm. Focus on breathing exercises that help calm your nervous system. In addition, reaching out to a trusted friend or family member can help break the isolation. Ensure you're getting adequate rest, as sleep disturbances can worsen depression. Consider engaging in light physical activity like yoga or walking to improve mood. If you need further support, booking a session with one of Serenimind's licensed therapists can provide you with expert guidance."
+],
+
+"Seeking_Professional_Help": [
+    "Seeking professional help for depression is one of the most effective ways to start your healing journey. A therapist can help you explore the underlying causes of your depression and work with you to develop healthy coping mechanisms. Cognitive Behavioral Therapy (CBT) is a popular treatment that helps you identify negative thought patterns and replace them with more balanced perspectives. Sometimes, therapy involves looking at past experiences to understand current behaviors. If you are feeling overwhelmed, booking a therapy session on Serenimind can provide you with access to licensed professionals who specialize in treating depression.",
+    
+    "It’s a sign of strength to acknowledge when you need professional support. A therapist can help you explore the root causes of your depression and work with you to identify solutions. Therapy could involve various techniques, such as talk therapy, cognitive restructuring, or behavioral therapy, all tailored to your specific needs. It’s important to remember that healing is a journey, and therapy can give you the tools to navigate that journey with confidence. If you're ready, Serenimind offers easy access to therapists who can support you every step of the way."
+],
+
+"Depression_Support_Network": [
+    "Building a support network is one of the most powerful tools you can use when managing depression. Isolation often exacerbates feelings of sadness, so it’s important to stay connected with others, whether through family, friends, or support groups. While it can be hard to open up, sharing your feelings with trusted individuals can create a sense of relief and connection. There are also online communities, both public and private, where people share their experiences with depression. These groups can help you feel less alone. If you're unsure where to start, Serenimind can guide you to support groups or professional therapists who specialize in creating healthy support systems.",
+    
+    "It’s essential to have a support system when navigating depression. Isolation can amplify feelings of loneliness and sadness, so connecting with others who understand can make a huge difference. Seek out a trusted family member, friend, or support group where you can express yourself freely. Talking to others who are going through similar experiences can also help you realize that you're not alone. If you feel comfortable, you can reach out to a Serenimind therapist who can help you identify and strengthen your support network."
+],
+
+"Depression_Affirmations": [
+    "Affirmations are a powerful tool to help counteract the negative self-talk that often accompanies depression. Begin by creating a list of positive statements that resonate with you. Some examples include, 'I am worthy of love and happiness,' or 'I have the strength to face this.' These affirmations can be repeated daily, especially during difficult moments, to shift your mindset and reframe your thoughts. Over time, you’ll find that these positive statements begin to overwrite negative thought patterns. Consistency is key, and if you need guidance on how to use affirmations more effectively, a Serenimind therapist can help integrate them into your daily routine.",
+    
+    "Using affirmations can create a strong foundation for building self-compassion and confidence. Start each day with an affirmation that reflects your strength, such as 'I am capable of overcoming challenges.' Even on days when it feels impossible, remind yourself that healing is a journey, and it’s okay to take small steps. Keep your affirmations visible, on sticky notes or your phone, so they serve as a constant reminder of your worth. If you’re unsure how to incorporate affirmations into your routine, a therapist on Serenimind can guide you."
+],
+
+"Depression_Exercise_Tips": [
+    "Exercise is a natural way to combat depression as it helps release endorphins, the body’s mood-boosting chemicals. Start small with activities like walking or gentle stretching. Aim for at least 30 minutes of light exercise per day, but don’t feel pressured to do more than you’re comfortable with. Even small actions, such as taking the stairs or stretching while watching TV, can help lift your mood. In addition to physical activity, try incorporating relaxation exercises such as yoga or tai chi, which combine movement with mindfulness. If you find it difficult to get started, booking a session with a therapist through Serenimind can help you build a plan that works for you.",
+    
+    "Exercise is a proven method to alleviate symptoms of depression. Even though it may feel challenging, starting with light movement, such as a short walk or some basic stretches, can make a difference. Physical activity not only helps reduce stress but also improves sleep and boosts overall well-being. Set realistic goals, and remember that every small step counts. Additionally, combining exercise with deep breathing techniques can enhance the benefits. If you need help developing an exercise plan tailored to your needs, consider booking a therapy session through Serenimind."
+],
+
+"Depression_Sleep_Tips": [
+    "Sleep issues are common with depression, but establishing a consistent sleep routine can improve both your sleep quality and mood. Start by creating a calming bedtime ritual, such as reading a book or listening to soothing music, to help signal your brain that it’s time to wind down. Avoid caffeine or alcohol close to bedtime, as these can interfere with your sleep. Keep your bedroom environment comfortable, dark, and quiet. A consistent sleep schedule is also crucial – aim to wake up and go to bed at the same time every day. If sleep disturbances persist, reach out to a therapist through Serenimind to address underlying causes of poor sleep.",
+    
+    "Good sleep hygiene is a key factor in managing depression. Start by setting up a calming pre-sleep routine, such as a warm bath or relaxation exercises, to ease your body into rest. Avoid screen time at least 30 minutes before bed, as the blue light emitted can disrupt your sleep. Also, try to keep your sleep environment quiet, cool, and dark. If you're struggling to sleep despite following these tips, it may be helpful to talk to a therapist who can assist you in addressing any underlying issues. Serenimind can connect you to a professional therapist to help improve your sleep."
+],
+
+"Depression_Mindfulness_Techniques": [
+    "Mindfulness techniques can help you stay grounded when you're feeling overwhelmed by depression. Start by focusing on your breath: take a deep breath in for a count of four, hold for four, and exhale for four. Practice this a few times to calm your nervous system. You can also use a technique called 'body scan' where you mentally check in with each part of your body, noticing any tension and consciously relaxing it. Regular mindfulness practices can create a sense of calm and help you stay connected to the present. If you find it difficult to start practicing mindfulness on your own, a Serenimind therapist can guide you through it.",
+    
+    "Mindfulness is an effective way to manage the emotional turbulence that comes with depression. One simple practice is to sit comfortably, close your eyes, and pay attention to your breath. When your mind begins to wander, gently bring your focus back to your breath. You can also practice mindfulness while doing everyday activities, such as eating or walking, by fully engaging in the experience without judgment. Over time, mindfulness can help reduce anxiety and depressive thoughts. If you're unsure how to start, Serenimind can connect you with a therapist who specializes in mindfulness techniques."
+],
+    "farewell": [
+        "Take good care of yourself. Remember that you can always return when you need support.",
+        "Goodbye for now. Be gentle with yourself, and know that support is always available here when you need it.",
+        "Take care, and remember that every small step matters. I'm here whenever you need to talk.",
+        "Wishing you well. Remember to be kind to yourself, and feel free to return anytime you need support.",
+        "Goodbye. Remember that seeking support is a sign of strength, and you're welcome back anytime."
     ],
     'unknown': [
         "I'm not sure I fully understand. Could you rephrase that or provide more details?",
@@ -588,318 +2344,7 @@ class ChatbotView(APIView):
         "I want to make sure I'm addressing your needs correctly. Could you elaborate on that?",
         "I'm not quite sure how to respond to that. Can you give me some more context?",
         "I'm afraid I don't have enough information to respond accurately. Could you clarify your question or statement?"
-    ],
-    'seek_professional_help': [
-        "It's great that you're considering professional help. SereniMind offers personalized guidance from experienced mental health professionals. Would you like me to guide you through booking a session?",
-        "Seeking professional support is a strong and positive step. We have a range of experts available, from counselors to career coaches. Can I help you find the right professional for your needs?",
-        "I'm glad you're reaching out for professional support. SereniMind's network of mental health professionals is here to help. What kind of support are you looking for?",
-        "Professional guidance can be incredibly beneficial. SereniMind offers various types of professional support. Would you like to explore our counseling services?",
-        "It's courageous to seek professional help. SereniMind can connect you with experienced therapists. Shall we look at available options together?"
-    ],
-    'ai_companion': [
-        "As your AI companion, I'm here to offer support and a safe space for open conversations. How can I assist you today?",
-        "SereniAI is designed to be your trusted AI friend, offering tailored support. What would you like to talk about?",
-        "I'm your AI-powered confidant, here to listen and support you. Is there anything specific on your mind?",
-        "As an AI companion, I'm here to offer a judgment-free space for you to express yourself. What would you like to discuss?",
-        "SereniAI is here to provide personalized support. How can I make your day a little brighter?"
-    ],
-    'community_support': [
-        "SereniMind offers a supportive community where you can connect with like-minded individuals. Would you like to learn more about our community features?",
-        "Sharing experiences and growing together can be really beneficial. Our community provides a nurturing space for this. Are you interested in joining?",
-        "The SereniMind community is a great place to find support and understanding. What kind of connections are you looking to make?",
-        "Our supportive community is here to help you on your journey. Would you like to explore how you can engage with others who may have similar experiences?",
-        "Connecting with others can be a powerful tool for growth. How about we take a look at the community features SereniMind offers?"
-    ],
-    'journaling': [
-        "SereniMind offers a personal journal feature to help with self-discovery and tracking your progress. Would you like some tips on how to get started with journaling?",
-        "Journaling can be a great tool for reflection and goal-setting. How about we explore some journaling prompts together?",
-        "Our personalized journal is designed to help you reflect and grow. What aspects of journaling are you most interested in?",
-        "Tracking your journey through journaling can be really insightful. Would you like to learn more about how to use SereniMind's journal feature effectively?",
-        "Journaling is a powerful tool for self-discovery. Shall we discuss some techniques to make the most of your journaling practice?"
-    ],
-    'mood_boosting_activities': [
-        "SereniMind offers a variety of mood-boosting activities. Would you like to try a game, listen to some uplifting sounds, or perhaps watch a motivational video?",
-        "Engaging in fun activities can really help uplift your spirits. What kind of activity do you usually enjoy when you need a mood boost?",
-        "We have exercises specifically designed to enrich your well-being. Are you in the mood for something active, creative, or relaxing?",
-        "Mood-boosting activities can be a great way to shift your energy. Would you like to explore some of the options we have available?",
-        "From games to exercises, we have various activities to help improve your mood. What sort of activity appeals to you right now?"
-    ],
-    'blog_posts': [
-        "SereniMind features inspiring blog posts to keep you motivated. Would you like me to recommend a blog post based on how you're feeling today?",
-        "Our platform allows you to both read and create uplifting blogs. Are you interested in reading some motivational content or perhaps sharing your own story?",
-        "Engaging with positive content can help maintain focus on personal growth. What topics are you most interested in reading about?",
-        "Our blog section is filled with inspiring stories and helpful tips. Would you like to explore some recent posts?",
-        "Writing can be as therapeutic as reading. Would you like to try writing a short blog post about your experiences or read some uplifting content?"
-    ],
-    'daily_inspiration': [
-        "SereniMind offers daily inspiration to start your day on a positive note. Would you like to hear today's motivational quote?",
-        "Daily reminders can help keep you energized and focused. How about we set up personalized daily inspirational messages for you?",
-        "Starting the day with inspiration can set a positive tone. What kind of motivational content resonates with you the most?",
-        "Our daily inspiration feature is designed to boost your motivation. Would you like to customize the type of inspirational content you receive?",
-        "Positive reminders throughout the day can be really helpful. Shall we explore how to make the most of SereniMind's daily inspiration feature?"
-    ],
-    'platform_info': [
-        "SereniMind offers a range of features including professional support, AI companionship, community engagement, journaling, mood-boosting activities, inspiring blogs, and daily motivation. Which aspect would you like to know more about?",
-        "Our platform is designed to support your mental well-being through various services. We offer everything from professional counseling to AI-powered conversations. What area of support are you most interested in?",
-        "SereniMind is here to support your personal growth and mental health. We provide tools for self-reflection, community support, professional guidance, and more. How can we best assist you today?",
-        "From AI companionship to professional therapy, SereniMind offers comprehensive support for your mental well-being. Would you like an overview of our key features?",
-        "SereniMind is your all-in-one platform for mental health support. We offer professional help, community support, self-help tools, and more. What aspect of mental well-being are you looking to improve?"
-    ],
-    'self_care': [
-        "Self-care is essential! Try setting aside some time each day to focus on activities that make you feel relaxed and happy.",
-        "Remember, self-care isn't selfish. Taking time to rest and recharge helps you show up better in all areas of life!",
-        "Consider simple self-care activities, like going for a walk, reading a good book, or practicing mindfulness."
-    ],
-    'gratitude': [
-        "Practicing gratitude can really shift your mindset. Try listing three things you're grateful for each day.",
-        "Gratitude is a powerful tool. Focusing on the positive aspects of your life can help improve your overall mood.",
-        "Even on tough days, there are things to be grateful for. Take a moment to reflect on the small joys."
-    ],
-    'goal_setting': [
-        "Setting goals can be empowering! Start small and make a plan for how to achieve each one step by step.",
-        "It's great to have goals! Remember to celebrate your progress along the way, no matter how small.",
-        "When setting goals, try to make them specific and achievable. This will help keep you motivated."
-    ],
-    'self_confidence': [
-        "Building self-confidence takes time. Try focusing on your strengths and acknowledging your achievements.",
-        "Confidence comes from within. Trust yourself and take small steps towards embracing who you are.",
-        "Everyone has their unique qualities. Embrace yours, and remember that you are valuable just as you are."
-    ],
-    'productivity': [
-        "Productivity doesn't mean working non-stop. Breaks are important to keep your mind fresh and focused!",
-        "Consider setting small, manageable tasks to boost your productivity throughout the day.",
-        "Remember, productivity is about quality, not quantity. Prioritize your tasks and be kind to yourself."
-    ],
-    'grief': [
-        "Grieving takes time, and it’s okay to feel whatever you're feeling. Take it one day at a time.",
-        "Loss is hard. Reach out to others, or take time for yourself—whatever feels right for you.",
-        "Healing from grief is a journey. Give yourself grace, and don't be afraid to ask for support if needed."
-    ],
-    'self_discovery': [
-        "Self-discovery is a journey. Try journaling your thoughts or exploring new interests to learn more about yourself.",
-        "Take time to reflect on what makes you happy and what you value. This is a key part of self-discovery.",
-        "Exploring new activities, interests, or hobbies can help you better understand yourself."
-    ],
-    'mindfulness': [
-        "Mindfulness can help you stay present. Start with deep breathing exercises or focus on your surroundings.",
-        "Practicing mindfulness can be as simple as focusing on your breathing or appreciating small moments.",
-        "Being mindful is about grounding yourself in the present. Try to observe without judgment."
-    ],
-    'coping_strategies': [
-        "There are many ways to cope. Try deep breathing, talking to a friend, or taking a break when feeling overwhelmed.",
-        "Remember that it's okay to take things slowly. Focus on what helps you feel better in the moment.",
-        "Coping can mean different things to different people. Find what works best for you and practice it regularly."
-    ],
-    'positive_thinking': [
-        "Positive thinking can be a game changer. Focus on your strengths and the good things around you.",
-        "Try to reframe negative thoughts and remind yourself of things that make you happy.",
-        "It takes practice, but gradually focusing on the positive can help shift your perspective."
-    ],
-    'relaxation': [
-        "Relaxation is key for your well-being. Try to set aside time each day to do something that calms you.",
-        "Consider activities like listening to music, taking a bath, or practicing deep breathing to relax.",
-        "Find a peaceful spot, take a few deep breaths, and allow yourself to unwind for a moment."
-    ],
-    'financial_stress': [
-        "Money issues can be overwhelming. Start by creating a budget and breaking down financial goals.",
-        "Consider talking to a financial advisor if you're feeling uncertain. There are often resources that can help.",
-        "Remember, you don’t have to face this alone. Reaching out for advice or support is a good step."
-    ],
-    'forgiveness': [
-        "Forgiveness can be freeing. Remember that it's more about your peace of mind than anything else.",
-        "Forgiving others (and yourself) can be hard, but it can also lighten your emotional load.",
-        "It takes time to let go. Take it one step at a time and be gentle with yourself in the process."
-    ],
-    'social_skills': [
-        "Improving social skills takes practice. Start with small interactions, like greeting people you see regularly.",
-        "Focus on listening to others and showing interest in their words. This can help build rapport.",
-        "Be yourself, and don't worry too much about being perfect. Genuine connections come from authenticity."
-    ],
-    'loneliness': [
-        "Feeling lonely can be tough. Try reaching out to someone you trust or joining a group activity.",
-        "Remember that you are not alone, even if it feels that way. Many people care about you.",
-        "Consider joining clubs, classes, or online communities to connect with others who share your interests."
-    ],
-    'resilience': [
-        "Resilience is about bouncing back from setbacks. Give yourself time and take things one step at a time.",
-        "Focus on what you can control and try to let go of the rest. Building resilience is a gradual process.",
-        "Remember, every challenge you face helps you grow stronger. Be proud of your journey."
-    ],
-    'acceptance': [
-        "Acceptance starts with embracing who you are, flaws and all. It’s okay to not be perfect.",
-        "Letting go of comparisons can help you focus on your unique path. You are enough as you are.",
-        "Acceptance takes practice. Be kind to yourself as you work towards embracing yourself fully."
-    ],
-    'creativity': [
-        "Creativity is a great outlet! Try expressing yourself through art, writing, or any activity you enjoy.",
-        "You don’t have to be perfect to be creative. Just start, and let yourself enjoy the process.",
-        "Creativity can be a wonderful release. Embrace it and see where it takes you."
-    ],
-    'digital_detox': [
-        "Taking a break from screens can refresh your mind. Consider a no-phone hour each day to start.",
-        "Social media breaks can help you refocus. Try setting limits to balance your screen time.",
-        "Disconnecting can help you reconnect with yourself. Go offline for a bit to recharge."
-    ],
-    'assertiveness': [
-        "Assertiveness is about expressing yourself calmly and clearly. Practice makes perfect!",
-        "Don’t be afraid to stand up for yourself. Setting boundaries is a form of self-respect.",
-        "Remember that saying no is okay. Your feelings and needs are important."
-    ],
-    'boundaries': [
-        "Setting boundaries can protect your energy. Start by expressing your needs to others clearly.",
-        "Healthy boundaries are key to maintaining good relationships. Don’t be afraid to prioritize yourself.",
-        "Setting boundaries may feel challenging, but it’s essential for self-care and mental health."
-    ],
-    'mental_health_info': [
-        "Mental health is just as important as physical health. Taking care of it should be a priority.",
-        "Learning about mental health is a great step. There are many resources to guide you on this journey.",
-        "Taking care of your mental health is crucial. Reach out if you need support or guidance."
-    ],
-    'validation': [
-        "You deserve to be heard and understood. Your feelings are valid and important.",
-        "Feeling understood can bring comfort. Don’t hesitate to reach out for support if you need it.",
-        "Your feelings are real and valid. Give yourself permission to feel what you’re experiencing."
-    ],
-    'healing': [
-        "Healing is a journey. Take it one day at a time, and remember that it’s okay to ask for help.",
-        "Healing doesn't have a set timeline. Be gentle with yourself and honor your process.",
-        "Take time to heal. You’re allowed to move at your own pace as you find peace."
-    ],
-    'anxiety_management': [
-        "When you feel anxious, try grounding techniques like deep breathing or focusing on your senses.",
-        "Anxiety can be overwhelming. Try to remind yourself that this feeling will pass.",
-        "Finding ways to stay present can help with anxiety. Consider meditation or a calming activity."
-    ],
-    'motivation_boost': [
-        "Remember why you started, and take things one step at a time. You’ve got this!",
-        "Motivation comes and goes. When it's low, focus on small tasks to keep moving forward.",
-        "Sometimes a quick break or change of scenery can reignite your motivation!"
-    ],
-    'healthy_relationships': [
-        "Healthy relationships are built on trust and respect. Open communication is key.",
-        "Remember, a good relationship is mutual. It’s okay to set boundaries if needed.",
-        "Value those who support and uplift you. Nurturing healthy relationships takes effort from both sides."
-    ],
-    'stress_management': [
-        "Stress is a normal part of life. Try to identify what’s causing it and take things one step at a time.",
-        "Managing stress takes practice. Deep breathing, exercise, or a quick walk can help!",
-        "Don't forget to take breaks. Even a few minutes of relaxation can make a difference."
-    ],
-    'time_management': [
-        "Organizing your day with a schedule can help manage time more effectively.",
-        "Time management is all about balance. Try to prioritize and avoid multitasking.",
-        "Breaking tasks into smaller steps can make them feel more manageable and less overwhelming."
-    ],
-    'compassion': [
-        "Showing compassion to others is important, but don’t forget to extend it to yourself too.",
-        "Compassion means understanding and kindness. Try to approach situations with an open heart.",
-        "Compassion can make a huge difference. A little kindness goes a long way."
-    ],
-    'assertive_communication': [
-        "Being assertive means expressing yourself clearly and respectfully. It’s a skill that takes practice!",
-        "Assertiveness involves standing up for yourself calmly. It helps others understand your needs.",
-        "Remember, being assertive is not rude—it’s respectful. Speak up for what’s important to you."
-    ],
-    'overcoming_procrastination': [
-        "Sometimes, just starting with a small step can help beat procrastination.",
-        "Break tasks into smaller, manageable parts to make them feel less overwhelming.",
-        "Procrastination happens to everyone. Set a timer and focus on one task for a short period to get going."
-    ],
-    'body_positivity': [
-        "Embrace your body as it is. You are more than how you look.",
-        "Body positivity means appreciating your body for all it does for you, not just how it looks.",
-        "Focus on what makes you feel good in your own skin. Self-love starts with acceptance."
-    ],
-    'emotional_regulation': [
-        "Identifying your emotions is a great first step. Name them, then decide how to manage them.",
-        "Emotions come and go. Practicing deep breathing can help you stay calm during intense moments.",
-        "Don’t judge your feelings—accept them. Then, consider healthy ways to cope or respond."
-    ],
-    'conflict_resolution': [
-        "During conflicts, try to focus on understanding the other person’s perspective.",
-        "Take a pause and gather your thoughts before reacting to any situation.",
-        "Conflict resolution is about listening as much as talking. Aim for solutions, not winning."
-    ],
-    'forgiving_yourself': [
-        "Forgiving yourself is essential for growth. Be gentle with yourself; everyone makes mistakes.",
-        "Self-forgiveness can help you move forward. Remember, no one is perfect.",
-        "Let go of past mistakes to make room for growth and positivity in the present."
-    ],
-    'career_growth': [
-        "Career growth is a journey. Keep learning and seek opportunities that align with your passions.",
-        "Focus on your strengths, and don’t be afraid to ask for guidance or mentorship.",
-        "Be patient and consistent. Career growth takes time and dedication."
-    ],
-    'rejection': [
-        "Rejection can be hard, but it’s also a part of life. Use it as a learning experience.",
-        "Remember, rejection doesn’t define your worth. Stay focused on your goals.",
-        "Rejection can open doors to new opportunities. Trust that better things are ahead."
-    ],
-    'change_management': [
-        "Change can be difficult, but it often brings growth. Take it one step at a time.",
-        "Try to embrace change as an opportunity for something new and positive.",
-        "Adaptability is a strength. Go at your own pace, and know it's okay to feel uncertain."
-    ],
-    'setting_personal_values': [
-        "Knowing your values can guide your decisions and keep you aligned with what matters.",
-        "Your values are unique to you. Take time to define them, and let them guide your actions.",
-        "Reflecting on your values can help you make choices that bring fulfillment and peace."
-    ],
-    'overcoming_trauma': [
-        "Healing from trauma takes time. Seek support and be kind to yourself as you recover.",
-        "Trauma is complex. Reach out for help if needed, and take things day by day.",
-        "Your healing journey is personal. Take small steps and acknowledge each victory along the way."
-    ],
-    'work_life_balance': [
-        "Finding balance means prioritizing both your work and personal time.",
-        "Work-life balance requires setting boundaries. Make time for things that bring you joy.",
-        "Remember to take breaks and disconnect after work hours to recharge."
-    ],
-    'coping_with_relocation': [
-        "Moving to a new place can be challenging. Try exploring your surroundings and connecting with locals.",
-        "Give yourself time to adjust to the change. It’s normal to feel out of place at first.",
-        "Staying connected with friends or family can make the transition easier."
-    ],
-    'habit_building': [
-        "Building a habit takes time. Start small and celebrate each milestone.",
-        "Consistency is key in habit-building. Try to practice the habit daily to reinforce it.",
-        "Create a routine that supports your new habit, and make it enjoyable if you can!"
-    ],
-    'self_expression': [
-        "Self-expression is about being true to who you are. Try activities that allow you to explore your creativity.",
-        "Finding outlets like art, writing, or music can help you express yourself authentically.",
-        "Let your self-expression reflect your personality. There’s no ‘right’ way to be you."
-    ],
-    'overcoming_fear': [
-        "Facing fears can be empowering. Start small, and celebrate each step you take forward.",
-        "Fears often lose power when we confront them. Take it slow, and be patient with yourself.",
-        "You’re stronger than your fears. Remember, each step forward is progress."
-    ],
-    'embracing_vulnerability': [
-        "Vulnerability is a strength, not a weakness. Allow yourself to open up at your own pace.",
-        "Being vulnerable can deepen connections. Trust the people you open up to.",
-        "It’s okay to show your true self. Vulnerability is part of being human."
-    ],
-    'finding_purpose': [
-        "Purpose is something you discover over time. Reflect on what brings meaning to your life.",
-        "Exploring your interests and passions can guide you toward finding purpose.",
-        "Purpose often lies in doing things that align with your values and bring you joy."
-    ],
-    'saying_no': [
-        "Saying no is a form of self-care. Remember, you don’t have to please everyone.",
-        "It’s okay to set boundaries. Saying no is a way to respect your own time and energy.",
-        "Practice saying no politely but firmly. You deserve to prioritize your needs."
-    ],
-    'managing_expectations': [
-        "Managing expectations can relieve pressure. Focus on what’s realistic and achievable.",
-        "It’s okay if things don’t go as planned. Adjusting expectations can help you feel more at peace.",
-        "Try to set expectations that feel manageable. It’s okay to be flexible with your goals."
-    ],
-    'breaking_bad_habits': [
-        "Breaking habits takes time. Start by identifying triggers and finding healthier alternatives.",
-        "Be patient with yourself as you work to change. Progress, not perfection, is the goal.",
-        "Celebrate small victories along the way. Each step counts toward creating positive change."
-    ]
+    ],  
         }
 
         # Get user input from the request

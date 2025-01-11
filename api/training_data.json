@@ -1,0 +1,107 @@
+{
+    "greeting": [
+        "hello", "hi", "hey", "good morning", "good afternoon", "good evening", "hi there", 
+        "hello there", "greetings", "how are you", "nice to meet you", "pleasure to meet you",
+        "hi sereni", "hello sereni", "hey sereni", "good day", "morning", "evening",
+        "can we talk", "i need someone to talk to", "are you there", "anyone there",
+        "i could use someone to talk to", "feeling lonely need to talk"
+    ],
+
+    "anxiety_expression": [
+        "i feel anxious", "i'm having anxiety", "my anxiety is bad today",
+        "feeling really nervous", "can't stop worrying", "overwhelming anxiety",
+        "panic attack", "having a panic attack", "anxiety symptoms",
+        "heart racing", "trouble breathing", "feels like i might die",
+        "constant worry", "can't relax", "restless thoughts",
+        "social anxiety", "scared of people", "fear of public places",
+        "anxiety about future", "health anxiety", "work anxiety",
+        "relationship anxiety", "performance anxiety", "test anxiety",
+        "morning anxiety", "night anxiety", "anxiety keeping me awake",
+        "anxiety and nausea", "anxiety chest pain", "anxiety dizziness",
+        "overthinking everything", "racing thoughts", "mind won't shut off",
+        "afraid of everything", "constant fear", "irrational fears",
+        "anxiety about anxiety", "worried about worrying", "fear of losing control"
+    ],
+
+    "depression_expression": [
+        "i feel depressed", "feeling really down", "can't stop feeling sad",
+        "no motivation", "nothing makes me happy", "lost interest in everything",
+        "feeling hopeless", "what's the point", "life feels meaningless",
+        "can't get out of bed", "too tired to function", "everything is hard",
+        "feeling worthless", "i hate myself", "no one understands",
+        "always tired", "can't sleep", "sleeping too much",
+        "no appetite", "eating too much", "weight changes",
+        "feeling empty", "emotional numbness", "can't feel anything",
+        "crying all the time", "random crying", "emotional outbursts",
+        "isolation", "avoiding people", "want to be alone",
+        "suicidal thoughts", "death thoughts", "self harm thoughts",
+        "feeling like a burden", "everyone would be better off without me",
+        "can't see a future", "nothing will ever change", "stuck in darkness"
+    ],
+
+    "stress_expression": [
+        "feeling stressed", "too much stress", "can't handle stress",
+        "work stress", "school stress", "family stress",
+        "relationship stress", "financial stress", "time stress",
+        "burnout", "overwhelmed", "too much pressure",
+        "can't cope", "breaking point", "stressed about everything",
+        "stress symptoms", "stress headaches", "stress eating",
+        "stress insomnia", "workplace stress", "deadline stress",
+        "exam stress", "presentation stress", "interview stress"
+    ],
+
+    "trauma_expression": [
+        "dealing with trauma", "ptsd symptoms", "flashbacks",
+        "trauma triggers", "childhood trauma", "abuse trauma",
+        "accident trauma", "medical trauma", "military trauma",
+        "emotional flashbacks", "trauma memories", "nightmares",
+        "hypervigilance", "startle response", "emotional numbness",
+        "avoiding triggers", "trauma anniversary", "complex ptsd"
+    ],
+
+    "relationship_issues": [
+        "relationship problems", "marriage issues", "partner conflict",
+        "trust issues", "communication problems", "feeling unloved",
+        "attachment issues", "fear of abandonment", "commitment issues",
+        "relationship anxiety", "jealousy issues", "insecurity in relationships",
+        "controlling partner", "toxic relationship", "abusive relationship",
+        "breakup", "divorce", "separation anxiety",
+        "loneliness", "fear of intimacy", "relationship trauma"
+    ],
+
+    "self_esteem": [
+        "low self esteem", "hate myself", "feel worthless",
+        "not good enough", "self hatred", "body image issues",
+        "feeling inferior", "comparison issues", "imposter syndrome",
+        "self doubt", "lack confidence", "social comparison",
+        "perfectionism", "fear of judgment", "self criticism"
+    ],
+
+    "seeking_help": [
+        "need help", "looking for advice", "what should i do",
+        "how to cope", "coping strategies", "mental health resources",
+        "therapy options", "find therapist", "treatment options",
+        "medication info", "self help", "crisis help",
+        "emergency resources", "support groups", "online therapy"
+    ],
+
+    "gratitude_expression": [
+        "thank you", "thanks", "appreciate it", "grateful",
+        "thanks for listening", "thanks for understanding",
+        "helpful advice", "feel better now", "thanks for being there"
+    ],
+
+    "farewell": [
+        "goodbye", "bye", "talk later", "need to go",
+        "thanks for chat", "until next time", "good night",
+        "take care", "see you", "bye for now"
+    ],
+    "sadness": [
+        "im sad",
+        "i feel sad",
+        "feeling down",
+        "i'm depressed",
+        "feeling blue",
+        "feeling low"
+    ]
+}

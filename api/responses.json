@@ -1,0 +1,96 @@
+{
+    "greeting": [
+        "Hello! I'm SereniAI, your mental health support companion. How are you feeling today?",
+        "Hi there! I'm here to listen and support you. Would you like to talk about what's on your mind?",
+        "Welcome! I'm SereniAI, a safe space for you to share your thoughts and feelings. How can I help you today?",
+        "Greetings! I'm here to provide support and understanding. How are you doing right now?",
+        "Hello! Thank you for reaching out. This is a safe space to talk about whatever you're experiencing."
+    ],
+
+    "anxiety_response": [
+        "I hear that you're experiencing anxiety. Remember that anxiety is a normal human experience, even though it can feel overwhelming. Would you like to talk about what's triggering these feelings?",
+        "Anxiety can be really challenging to deal with. Let's take a moment to ground ourselves. Can you tell me more about what you're feeling right now?",
+        "I understand that anxiety can feel overwhelming. Would you like to try a simple breathing exercise together to help calm your nervous system?",
+        "It sounds like you're going through a difficult time with anxiety. Your feelings are valid, and there are ways to manage these symptoms. Would you like to explore some coping strategies?",
+        "When anxiety hits, it can feel really scary. Remember that you're not alone in this, and these feelings will pass. Would you like to talk about what helps you feel calmer?"
+    ],
+
+    "depression_response": [
+        "I hear the pain in your words, and I want you to know that your feelings are valid. Depression can make everything feel overwhelming. Would you like to talk more about what you're experiencing?",
+        "It takes courage to share these feelings. Depression can make us feel very alone, but you're not alone in this. Can you tell me more about what's been happening?",
+        "I'm here to listen without judgment. Depression is a real struggle, and it's okay to not be okay. Would you like to explore some ways to cope with these feelings?",
+        "Your feelings of depression are valid, and it's brave of you to reach out. Sometimes taking small steps can help. Would you like to talk about what small thing might feel manageable today?",
+        "Living with depression is challenging, and I hear how much you're struggling. While I'm here to support you, have you considered talking to a mental health professional who can provide personalized care?"
+    ],
+
+    "stress_response": [
+        "It sounds like you're under a lot of pressure right now. Stress can feel overwhelming, but there are ways to manage it. Would you like to explore some stress management techniques?",
+        "Managing stress is important for your wellbeing. Can you tell me more about what's contributing to your stress levels?",
+        "It's completely normal to feel overwhelmed by stress. Let's try to break down what's happening and look at it one piece at a time. What feels most pressing right now?",
+        "Chronic stress can be exhausting. Would you like to try some simple relaxation techniques that might help you feel more centered?",
+        "I hear that you're feeling stressed. Sometimes identifying our stressors is the first step to managing them. Would you like to talk about what's causing the most stress for you?"
+    ],
+
+    "trauma_response": [
+        "Thank you for sharing this with me. Trauma can have a deep impact on our lives, and it's brave of you to talk about it. Would you like to share more about what you're experiencing?",
+        "I want you to know that your experiences and feelings are valid. Trauma responses are your body's natural way of protecting you. Would you like to explore some grounding techniques that might help when memories or feelings become overwhelming?",
+        "Processing trauma takes time, and it's okay to move at your own pace. Have you considered working with a trauma-informed therapist who can provide specialized support?",
+        "You're showing great strength in addressing your trauma. While I'm here to listen and support you, remember that professional trauma therapy can be very helpful in healing. Would you like information about finding trauma-informed care?",
+        "Living with trauma can feel isolating, but you're not alone. Many people have similar experiences and have found ways to heal. Would you like to know about some resources for trauma survivors?"
+    ],
+
+    "relationship_response": [
+        "Relationship challenges can be really difficult to navigate. Can you tell me more about what you're experiencing in your relationship?",
+        "It sounds like you're going through a tough time in your relationship. Your feelings are valid, and it's okay to feel this way. Would you like to explore what aspects of the relationship are most concerning to you?",
+        "Relationship issues can be very emotional and complex. While I can listen and offer support, have you considered couples counseling or relationship therapy?",
+        "It's important to take care of yourself while dealing with relationship challenges. Would you like to talk about some self-care strategies?",
+        "Healthy relationships require good communication and boundaries. Would you like to explore some communication techniques that might help?"
+    ],
+
+    "self_esteem_response": [
+        "I hear how much pain these negative thoughts about yourself are causing. Remember that your worth isn't determined by your achievements or others' opinions. Would you like to explore where these feelings might be coming from?",
+        "It's really difficult when we struggle with self-worth. Your feelings are valid, but please know that you deserve kindness - especially from yourself. Can we talk about what makes you feel good about yourself?",
+        "Self-esteem challenges are very common, but that doesn't make them any less painful. Would you like to work on some self-compassion exercises together?",
+        "The way we talk to ourselves matters so much. While these feelings are real, they're not facts about your worth. Would you like to explore some ways to challenge these negative thoughts?",
+        "Building self-esteem takes time and practice. Would you like to discuss some small steps you can take to start being kinder to yourself?"
+    ],
+
+    "help_response": [
+        "I'm glad you're reaching out for help. That's a brave first step. Can you tell me more about what kind of support you're looking for?",
+        "There are many different types of help available, and we can explore what might work best for you. Would you like to start by talking about what you're experiencing?",
+        "It's important to find the right kind of support for your needs. Would you like information about different mental health resources and treatment options?",
+        "Seeking help is a sign of strength, not weakness. While I'm here to listen and support you, I can also provide information about professional mental health services. Would that be helpful?",
+        "Thank you for trusting me with this. Would you like to explore some immediate coping strategies while we look into longer-term support options?"
+    ],
+
+    "crisis_response": [
+        "I hear that you're in crisis, and I want you to know that your life has value. If you're having thoughts of suicide or self-harm, please reach out to emergency services or a crisis helpline immediately. Would you like me to provide some crisis hotline numbers?",
+        "Your pain is real, and it's brave of you to reach out. While I'm here to listen, it's important to get professional help when feeling suicidal. Can I share some emergency resources with you?",
+        "I care about your safety and wellbeing. Please know that crisis counselors are available 24/7 to help you through this difficult time. Would you like their contact information?",
+        "You don't have to go through this alone. While we talk, I strongly encourage you to contact a crisis hotline or emergency services. They are trained to help in situations like this. Should I provide their numbers?",
+        "I understand you're in tremendous pain right now. While I'm here to support you, it's crucial to get professional help during a crisis. Let me share some emergency resources that can help."
+    ],
+
+    "gratitude_response": [
+        "I'm glad I could help. Remember that you're stronger than you know, and it's okay to reach out whenever you need support.",
+        "Thank you for trusting me with your feelings. You've taken important steps today, and that takes courage.",
+        "I appreciate you sharing with me. Remember that seeking support is a sign of strength, not weakness.",
+        "You're welcome. Please remember that you deserve support and understanding, and I'm here whenever you need to talk.",
+        "I'm here to support you on your journey. Don't hesitate to return whenever you need someone to talk to."
+    ],
+
+    "farewell": [
+        "Take good care of yourself. Remember that you can always return when you need support.",
+        "Goodbye for now. Be gentle with yourself, and know that support is always available here when you need it.",
+        "Take care, and remember that every small step matters. I'm here whenever you need to talk.",
+        "Wishing you well. Remember to be kind to yourself, and feel free to return anytime you need support.",
+        "Goodbye. Remember that seeking support is a sign of strength, and you're welcome back anytime."
+    ],
+    "sadness": [
+        "I hear that you're feeling sad. Would you like to talk about what's troubling you?",
+        "It takes courage to share these feelings. I'm here to listen and support you.",
+        "When you're feeling sad, it can help to talk about it. What's on your mind?",
+        "Your feelings are valid. Let's explore what's making you feel this way together.",
+        "I'm here to support you through this difficult time. Would you like to share more about what's causing these feelings?"
+    ]
+}
