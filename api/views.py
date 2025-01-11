@@ -1,15 +1,11 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
-from django.core.mail import send_mail
-from django.http import HttpResponse
-from django.http import HttpResponseForbidden
-from django.shortcuts import redirect
+from django.core.mail import send_mail 
+from django.http import HttpResponseForbidden 
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from django.contrib.auth.models import User
-from django.contrib import messages
-from django.shortcuts import redirect
+from django.contrib.auth.models import User 
 from rest_framework import status
 from .serializers import UserProfile
 from django.views.decorators.csrf import csrf_exempt
@@ -24,7 +20,7 @@ from .models import Todo, MoodEntry
 from .serializers import TodoSerializer, MoodEntrySerializer
 import random
 from .models import Community
-from django.http import JsonResponse, HttpResponseBadRequest
+from django.http import JsonResponse 
 import string
 from .models import BlogPost  # Import your BlogPost model
 from .serializers import SenderIdSerializer
@@ -44,47 +40,34 @@ from rest_framework import viewsets
 from .models import Community
 from .serializers import CommunitySerializer
 from django.middleware.csrf import get_token
-from django.http import JsonResponse
-from django.views.decorators.csrf import requires_csrf_token
+from django.http import JsonResponse 
 from django.http import HttpResponseForbidden
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 import json
-from rest_framework import generics
-from .models import CommunityPost
-from django.dispatch import receiver
-from django.urls import reverse
+from rest_framework import generics 
+from django.dispatch import receiver 
 from django_rest_passwordreset.signals import reset_password_token_created
-from django.core.mail import send_mail, EmailMessage
+from django.core.mail import send_mail 
 from .serializers import CommunitySerializer
 from django.core.cache import cache
 from django.contrib.auth.models import User
-from django.http import JsonResponse
-import jwt
-import datetime
+from django.http import JsonResponse 
 import os
 from rest_framework.generics import RetrieveUpdateAPIView, DestroyAPIView
 from .models import Message
 from .serializers import MessageSerializer
 from .models import Message
 from .serializers import MessageSerializer, MyTokenObtainPairSerializer
-from django.contrib.auth.models import User
-from django.contrib.auth.tokens import default_token_generator
-from django.utils.encoding import force_str
-from django.utils.http import urlsafe_base64_decode
-from django.contrib.auth.models import User
-from django.http import HttpResponse
+from django.contrib.auth.models import User 
+from django.contrib.auth.models import User 
 from rest_framework.decorators import api_view
 from django.core.mail import send_mail
 from django.http import JsonResponse
-from django.contrib.auth.models import User
-from rest_framework.generics import GenericAPIView
+from django.contrib.auth.models import User 
 from rest_framework.response import Response
-from rest_framework import status
-from django.contrib.auth.views import PasswordResetView as BasePasswordResetView
-from django.contrib.auth.forms import PasswordResetForm
-from .serializers import PasswordResetSerializer     
+from rest_framework import status 
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from rest_framework.views import APIView
@@ -96,8 +79,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .models import UserSettings
-from .serializers import UserSettingsSerializer
-from django.shortcuts import render
+from .serializers import UserSettingsSerializer 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .models import Post
@@ -107,8 +89,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from django.contrib.auth.decorators import login_required
+from rest_framework.response import Response 
 from django.contrib.auth import logout
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -119,42 +100,23 @@ from django.contrib.auth.models import User
 from rest_framework.response import Response
 from .models import JournalEntry
 from .serializers import MoodAssessmentSerializer
-from .serializers import JournalEntrySerializer
-from django.contrib.auth.decorators import login_required
+from .serializers import JournalEntrySerializer 
 from rest_framework_simplejwt.tokens import RefreshToken
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated 
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from .models import Conversation, AIMessage
-from sklearn.naive_bayes import MultinomialNB
+from rest_framework.response import Response 
 import os
-import pickle
-import numpy as np
-import pandas as pd
-from typing import Tuple, Dict, List, Any, Optional
-from dataclasses import dataclass
-from datetime import datetime
-import logging
-import json
-from pathlib import Path
-from transformers import BertTokenizer, BertModel
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import classification_report, confusion_matrix
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
-from nltk.corpus import stopwords, wordnet
-from nltk import pos_tag
+import pickle 
+import json 
+from sklearn.feature_extraction.text import TfidfVectorizer 
+from nltk.tokenize import word_tokenize 
+from nltk.corpus import stopwords 
 import nltk
 import random
-from collections import Counter, defaultdict
+from collections import Counter 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-import spacy
-from textblob import TextBlob
-import re
 
 
 # Download required NLTK data
