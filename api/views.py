@@ -117,6 +117,13 @@ from collections import Counter
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from sklearn.linear_model import LogisticRegression
+from django.db import models
+from datetime import datetime
+import json
+from .models import BotSettings
+from .serializers import BotSettingsSerializer
+
 
 
 # Download required NLTK data
@@ -3151,3 +3158,32 @@ def report_message(request, message_id):
         print(f"Error sending email: {str(e)}")
 
     return Response({"message": "Report submitted successfully"}, status=status.HTTP_201_CREATED)
+
+@permission_classes([IsAuthenticated])
+class BotSettingsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        settings, _ = BotSettings.objects.get_or_create(
+            user=request.user,
+            defaults={'bot_name': 'SereniAI'}
+        )
+        serializer = BotSettingsSerializer(settings)
+        return Response(serializer.data)
+
+    def put(self, request):
+        settings, _ = BotSettings.objects.get_or_create(
+            user=request.user,
+            defaults={'bot_name': 'SereniAI'}
+        )
+        serializer = BotSettingsSerializer(settings, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(
+                {"message": "Bot name updated successfully!", "data": serializer.data},
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {"message": "Failed to update bot name.", "errors": serializer.errors},
+            status=status.HTTP_400_BAD_REQUEST,
+        )

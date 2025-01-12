@@ -11,6 +11,7 @@ from rest_framework_simplejwt.views import (
 from rest_framework_simplejwt import views as jwt_views
 from rest_framework.routers import DefaultRouter
 from .views import TodoViewSet, MoodEntryViewSet
+from .views import BotSettingsView
 
 router = DefaultRouter()
 router.register(r'todos', TodoViewSet)
@@ -18,7 +19,7 @@ router.register(r'mood-entries', MoodEntryViewSet)
 
 router = routers.DefaultRouter()
 router.register(r'communities', CommunityViewSet)
-    
+     
 urlpatterns = [
     path('password_reset/', include('django_rest_passwordreset.urls', namespace='password_reset')),
     path('signup/', signup, name='signup'),
@@ -61,7 +62,7 @@ urlpatterns = [
     path('mood-assessment/', MoodAssessmentView.as_view(), name='mood_assessment'),
     path('report-message/<int:message_id>/', views.report_message, name='report_message'),
     path('chat/', ChatbotView.as_view(), name='chat'),
-
+    path('bot-settings/', BotSettingsView.as_view(), name='bot-settings'),
 ]
 
 

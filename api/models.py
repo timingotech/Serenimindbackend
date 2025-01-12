@@ -2,6 +2,7 @@ from django.db import models
 import uuid
 from django.contrib.auth.models import User
 from django.contrib import admin
+from django.conf import settings
 
 class UserSettings(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -119,12 +120,22 @@ class MoodAssessment(models.Model):
     def __str__(self):
         return f"{self.user.username}'s mood assessment on {self.timestamp}"
 
-class Conversation(models.Model):
+class ChatHistory(models.Model):
+    session_id = models.CharField(max_length=255)
+    message = models.TextField()
+    intent = models.CharField(max_length=255)
+    response = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+class BotSettings(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='bot_settings'
+    )
+    bot_name = models.CharField(max_length=50, default='SereniAI')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-class AIMessage(models.Model):
-    conversation = models.ForeignKey(Conversation, related_name='messages', on_delete=models.CASCADE)
-    content = models.TextField()
-    is_bot = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    class Meta:
+        unique_together = ['user']

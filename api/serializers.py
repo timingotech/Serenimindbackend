@@ -11,7 +11,15 @@ from .models import UserSettings
 from .models import Todo, MoodEntry
 from rest_framework import serializers
 from .models import MoodAssessment
+from rest_framework import serializers
+from .models import BotSettings
 
+class BotSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BotSettings
+        fields = ['bot_name']
+        
+        
 class TodoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Todo
