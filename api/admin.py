@@ -6,6 +6,7 @@ from .models import UserSettings
 from .models import Todo
 from .models import MoodAssessment
 from .models import BotSettings
+from .models import UserConversation
 
 # Register your models here
 
@@ -48,3 +49,10 @@ class BotSettingsAdmin(admin.ModelAdmin):
     search_fields = ('user__username', 'bot_name')
     list_filter = ('created_at', 'updated_at')
     ordering = ('-updated_at',)
+
+@admin.register(UserConversation)
+class UserConversationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'user_message', 'bot_response', 'timestamp')
+    search_fields = ('user__username', 'user_message')  # Search by username
+    list_filter = ('timestamp',)
+    ordering = ['-timestamp']

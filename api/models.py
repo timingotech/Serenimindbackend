@@ -139,3 +139,12 @@ class BotSettings(models.Model):
 
     class Meta:
         unique_together = ['user']
+
+class UserConversation(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conversations", null=True)  # Make it nullable temporarily
+    user_message = models.TextField()
+    bot_response = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Conversation with {self.user.username if self.user else 'Unknown'} at {self.timestamp}"

@@ -128,7 +128,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import FileSystemStorage
 import os
-
+from .models import UserConversation
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from rest_framework.permissions import IsAuthenticated
 
 # Download required NLTK data
 NLTK_DATA_PATH = '/opt/render/punkt'
@@ -149,11 +151,12 @@ except LookupError:
     NLTK_DATA_AVAILABLE = True
 
 class ChatbotView(APIView):
+    permission_classes = [IsAuthenticated]
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.load_or_train_model()
         self.intents = {
-    "greeting": [
+        "greeting": [
     "hello", "hi", "hey", "good morning", "good afternoon", "good evening", "hi there", "hello there", 
     "greetings", "how are you","how are you doing", "nice to meet you", "pleasure to meet you", "good day", "morning", 
     "evening", "howdy", "hey there", "hiya", "what's up", "sup", "yo", "welcome", "yo", "sup", "wassup", "wazzup", "whassup", "what up", "howdy", "hey yo", "yo yo",
@@ -1824,7 +1827,7 @@ class ChatbotView(APIView):
     "improvement request",
     "user review"
   ],
-    }
+     }
 
     def load_or_train_model(self):
         model_path = 'model.pkl'
@@ -1832,47 +1835,81 @@ class ChatbotView(APIView):
         if os.path.exists(model_path):
             try:
                 with open(model_path, 'rb') as f:
-                    self.model = pickle.load(f)
+                    # Change this line to unpack both model and vectorizer
+                    self.model, self.vectorizer = pickle.load(f)
             except (FileNotFoundError, pickle.UnpicklingError) as e:
                 print(f"Error loading model: {e}")
                 self.train_model()  # Train the model if loading fails
         else:
             self.train_model()
-
+            
     def train_model(self):
-        # Tokenization and stopword removal using NLTK
-        if NLTK_DATA_AVAILABLE:
-            stop_words = set(stopwords.words('english'))
-        else:
-            stop_words = set()  # In case NLTK data isn't available
-
         all_texts = []
         all_labels = []
         for intent, phrases in self.intents.items():
             for phrase in phrases:
-                tokens = word_tokenize(phrase.lower())
-                filtered_tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
-                all_texts.append(' '.join(filtered_tokens))
+                all_texts.append(phrase.lower())
                 all_labels.append(intent)
-
-        # Vectorization using TF-IDF
+        
+        # Vectorization and Training
         vectorizer = TfidfVectorizer()
         X = vectorizer.fit_transform(all_texts)
-
-        # Training a simple logistic regression model
         model = LogisticRegression()
         model.fit(X, all_labels)
+        
+        self.model = model
+        self.vectorizer = vectorizer
 
-        self.model = (model, vectorizer)  # Save both the model and vectorizer
-
-        # Save the model to a file
-        with open('model.pkl', 'wb') as f:  
-            pickle.dump((model, vectorizer), f)
+        # Save the model and vectorizer
+        with open('model.pkl', 'wb') as f:
+            pickle.dump((self.model, self.vectorizer), f)
 
     def post(self, request):
-        # Updated responses for each intent with multiple options
-        responses = {
-"greeting": [
+        print(request.headers)  # Log all headers
+        try:
+            # 1. Check authentication
+            if not request.user.is_authenticated:
+                return Response({"error": "User not authenticated"}, status=401)
+
+            # 1. Get initial input
+            user_message = request.data.get('message', '')
+            
+            if not user_message:
+                return Response({"error": "No message provided."}, status=400)
+
+            # 2. Preprocess the input
+            if NLTK_DATA_AVAILABLE:
+                stop_words = set(stopwords.words('english'))
+            else:
+                stop_words = set()
+                
+            tokens = word_tokenize(user_message.lower())
+            filtered_tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
+            
+            # 3. Get ML prediction
+            user_input_vectorized = self.vectorizer.transform([' '.join(filtered_tokens)])
+            predicted_intent_ml = self.model.predict(user_input_vectorized)[0]
+
+            # 4. Get frequency-based prediction
+            word_freq = Counter(filtered_tokens)
+            intent_scores = {}
+            
+            for intent, phrases in self.intents.items():
+                intent_score = 0
+                for phrase in phrases:
+                    phrase_tokens = word_tokenize(phrase.lower())
+                    for token in phrase_tokens:
+                        if token in word_freq:
+                            intent_score += word_freq[token]
+                intent_scores[intent] = intent_score
+
+            # 5. Combine predictions
+            predicted_intent_freq = max(intent_scores, key=intent_scores.get)
+            predicted_intent = predicted_intent_freq if intent_scores[predicted_intent_freq] > 0 else predicted_intent_ml
+
+            # 6. Get response based on intent
+            responses = {
+                "greeting": [
     "Hello! I'm SereniAI, your mental health support companion. How are you feeling today?",
     "Hi there! I'm here to listen and support you. Would you like to talk about what's on your mind?",
     "Welcome! I'm SereniAI, a safe space for you to share your thoughts and feelings. How can I help you today?",
@@ -2207,7 +2244,6 @@ class ChatbotView(APIView):
         "Physical signs like dizziness or restlessness can be addressed by ensuring proper hydration and taking short breaks during stressful activities. Sometimes, simply stepping outside for fresh air or a quick walk can help re-center your mind and body.\n\n"
         "If these symptoms occur frequently, consider consulting with a healthcare provider to rule out other causes and develop a more tailored strategy."
     ],
-
     "Cognitive_Symptoms": [
         "Racing thoughts and persistent worry are common cognitive symptoms of anxiety. When you notice your mind spiraling, try practicing mindfulness.\n\n"
         "Mindfulness involves focusing your attention on the present moment, such as observing your breathing or the sensations in your body. Apps like Headspace or Calm can guide you through mindfulness exercises and help quiet racing thoughts.",
@@ -2259,43 +2295,36 @@ class ChatbotView(APIView):
     
     "It's okay to feel like you’re carrying a heavy weight when dealing with depression. Some signs to look for are consistent low moods, hopelessness, or withdrawal from social activities. These feelings are valid, but they don’t define you. Focus on taking small steps – even something as simple as getting out of bed and stretching can begin to make a difference. If you're noticing these symptoms, it’s important to seek professional help. A therapist at Serenimind can work with you to develop coping strategies and help you manage the emotional weight you may be carrying."
 ],
-
 "Depression_Coping_Strategies": [
     "Coping with depression requires a multi-faceted approach that includes both physical and emotional strategies. Start by creating a daily routine, as structure can provide a sense of stability. Aim to get up at the same time each day, take small walks, and make time for hobbies, even if they don’t seem appealing at first. It’s essential to challenge negative thinking patterns by focusing on your strengths and reminding yourself of past accomplishments. Journaling your feelings and engaging in creative outlets can also help you process emotions. If you find it difficult to navigate these strategies alone, Serenimind can connect you with a therapist who can provide guidance and support tailored to your needs.",
     
     "When dealing with depression, it’s vital to remember that healing takes time. One strategy is practicing mindfulness to become more present in the moment, reducing feelings of overwhelm. Focus on breathing exercises that help calm your nervous system. In addition, reaching out to a trusted friend or family member can help break the isolation. Ensure you're getting adequate rest, as sleep disturbances can worsen depression. Consider engaging in light physical activity like yoga or walking to improve mood. If you need further support, booking a session with one of Serenimind's licensed therapists can provide you with expert guidance."
 ],
-
 "Seeking_Professional_Help": [
     "Seeking professional help for depression is one of the most effective ways to start your healing journey. A therapist can help you explore the underlying causes of your depression and work with you to develop healthy coping mechanisms. Cognitive Behavioral Therapy (CBT) is a popular treatment that helps you identify negative thought patterns and replace them with more balanced perspectives. Sometimes, therapy involves looking at past experiences to understand current behaviors. If you are feeling overwhelmed, booking a therapy session on Serenimind can provide you with access to licensed professionals who specialize in treating depression.",
     
     "It’s a sign of strength to acknowledge when you need professional support. A therapist can help you explore the root causes of your depression and work with you to identify solutions. Therapy could involve various techniques, such as talk therapy, cognitive restructuring, or behavioral therapy, all tailored to your specific needs. It’s important to remember that healing is a journey, and therapy can give you the tools to navigate that journey with confidence. If you're ready, Serenimind offers easy access to therapists who can support you every step of the way."
 ],
-
 "Depression_Support_Network": [
     "Building a support network is one of the most powerful tools you can use when managing depression. Isolation often exacerbates feelings of sadness, so it’s important to stay connected with others, whether through family, friends, or support groups. While it can be hard to open up, sharing your feelings with trusted individuals can create a sense of relief and connection. There are also online communities, both public and private, where people share their experiences with depression. These groups can help you feel less alone. If you're unsure where to start, Serenimind can guide you to support groups or professional therapists who specialize in creating healthy support systems.",
     
     "It’s essential to have a support system when navigating depression. Isolation can amplify feelings of loneliness and sadness, so connecting with others who understand can make a huge difference. Seek out a trusted family member, friend, or support group where you can express yourself freely. Talking to others who are going through similar experiences can also help you realize that you're not alone. If you feel comfortable, you can reach out to a Serenimind therapist who can help you identify and strengthen your support network."
 ],
-
 "Depression_Affirmations": [
     "Affirmations are a powerful tool to help counteract the negative self-talk that often accompanies depression. Begin by creating a list of positive statements that resonate with you. Some examples include, 'I am worthy of love and happiness,' or 'I have the strength to face this.' These affirmations can be repeated daily, especially during difficult moments, to shift your mindset and reframe your thoughts. Over time, you’ll find that these positive statements begin to overwrite negative thought patterns. Consistency is key, and if you need guidance on how to use affirmations more effectively, a Serenimind therapist can help integrate them into your daily routine.",
     
     "Using affirmations can create a strong foundation for building self-compassion and confidence. Start each day with an affirmation that reflects your strength, such as 'I am capable of overcoming challenges.' Even on days when it feels impossible, remind yourself that healing is a journey, and it’s okay to take small steps. Keep your affirmations visible, on sticky notes or your phone, so they serve as a constant reminder of your worth. If you’re unsure how to incorporate affirmations into your routine, a therapist on Serenimind can guide you."
 ],
-
 "Depression_Exercise_Tips": [
     "Exercise is a natural way to combat depression as it helps release endorphins, the body’s mood-boosting chemicals. Start small with activities like walking or gentle stretching. Aim for at least 30 minutes of light exercise per day, but don’t feel pressured to do more than you’re comfortable with. Even small actions, such as taking the stairs or stretching while watching TV, can help lift your mood. In addition to physical activity, try incorporating relaxation exercises such as yoga or tai chi, which combine movement with mindfulness. If you find it difficult to get started, booking a session with a therapist through Serenimind can help you build a plan that works for you.",
     
     "Exercise is a proven method to alleviate symptoms of depression. Even though it may feel challenging, starting with light movement, such as a short walk or some basic stretches, can make a difference. Physical activity not only helps reduce stress but also improves sleep and boosts overall well-being. Set realistic goals, and remember that every small step counts. Additionally, combining exercise with deep breathing techniques can enhance the benefits. If you need help developing an exercise plan tailored to your needs, consider booking a therapy session through Serenimind."
 ],
-
 "Depression_Sleep_Tips": [
     "Sleep issues are common with depression, but establishing a consistent sleep routine can improve both your sleep quality and mood. Start by creating a calming bedtime ritual, such as reading a book or listening to soothing music, to help signal your brain that it’s time to wind down. Avoid caffeine or alcohol close to bedtime, as these can interfere with your sleep. Keep your bedroom environment comfortable, dark, and quiet. A consistent sleep schedule is also crucial – aim to wake up and go to bed at the same time every day. If sleep disturbances persist, reach out to a therapist through Serenimind to address underlying causes of poor sleep.",
     
     "Good sleep hygiene is a key factor in managing depression. Start by setting up a calming pre-sleep routine, such as a warm bath or relaxation exercises, to ease your body into rest. Avoid screen time at least 30 minutes before bed, as the blue light emitted can disrupt your sleep. Also, try to keep your sleep environment quiet, cool, and dark. If you're struggling to sleep despite following these tips, it may be helpful to talk to a therapist who can assist you in addressing any underlying issues. Serenimind can connect you to a professional therapist to help improve your sleep."
 ],
-
 "Depression_Mindfulness_Techniques": [
     "Mindfulness techniques can help you stay grounded when you're feeling overwhelmed by depression. Start by focusing on your breath: take a deep breath in for a count of four, hold for four, and exhale for four. Practice this a few times to calm your nervous system. You can also use a technique called 'body scan' where you mentally check in with each part of your body, noticing any tension and consciously relaxing it. Regular mindfulness practices can create a sense of calm and help you stay connected to the present. If you find it difficult to start practicing mindfulness on your own, a Serenimind therapist can guide you through it.",
     
@@ -2315,62 +2344,28 @@ class ChatbotView(APIView):
         "I'm not quite sure how to respond to that. Can you give me some more context?",
         "I'm afraid I don't have enough information to respond accurately. Could you clarify your question or statement?"
     ],  
-        }
 
-        # Get user input from the request
-        user_message = request.data.get('message', '')
+            }
 
-        if not user_message:
-            return Response({"error": "No message provided."}, status=400)
-
-        try:
-            # Preprocess the user input and make predictions using ML model
-            model, vectorizer = self.model
-            if NLTK_DATA_AVAILABLE:
-                stop_words = set(stopwords.words('english'))
-            else:
-                stop_words = set()
-
-            tokens = word_tokenize(user_message.lower())
-            filtered_tokens = [word for word in tokens if word.isalnum() and word not in stop_words]
-            user_input_vectorized = vectorizer.transform([' '.join(filtered_tokens)])
-
-            # Predict the intent using the ML model
-            predicted_intent_ml = model.predict(user_input_vectorized)[0]
-
-            # Count word frequencies in the user's message
-            word_freq = Counter(filtered_tokens)
-
-            # Determine intent by matching most frequent words with intents
-            intent_scores = {}
-            for intent, phrases in self.intents.items():
-                intent_score = 0
-                for phrase in phrases:
-                    phrase_tokens = word_tokenize(phrase.lower())
-                    for token in phrase_tokens:
-                        if token in word_freq:
-                            intent_score += word_freq[token]
-                intent_scores[intent] = intent_score
-
-            # Select the intent with the highest score
-            predicted_intent_freq = max(intent_scores, key=intent_scores.get)
-
-            # Combine ML prediction and frequency-based prediction
-            if intent_scores[predicted_intent_freq] > 0:
-                predicted_intent = predicted_intent_freq
-            else:
-                predicted_intent = predicted_intent_ml
-
-            # Randomly select a response based on the predicted intent
+            # 7. Select random response for the predicted intent
             response_message = random.choice(responses.get(predicted_intent, responses["unknown"]))
 
-            return Response({"intent": predicted_intent, "response": response_message}, status=200)
+            # 8. Store in database using the authenticated user
+            conversation = UserConversation.objects.create(
+                user=request.user,  # Use the authenticated user directly
+                user_message=user_message,
+                bot_response=response_message
+            )
+
+            # 9. Return response
+            return Response({
+                "response": response_message, 
+                "intent": predicted_intent
+            }, status=200)
 
         except Exception as e:
-            return Response({"error": str(e)}, status=500)
-
-
-        
+            return Response({"error": str(e)}, status=500) 
+                
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_info_dashboard(request):

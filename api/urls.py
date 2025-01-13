@@ -64,7 +64,6 @@ urlpatterns = [
     path('chat/', ChatbotView.as_view(), name='chat'),
     path('bot-settings/', BotSettingsView.as_view(), name='bot-settings'),
     path('detect-mood/', detect_mood, name='detect_mood'),
-
 ]
 
 
