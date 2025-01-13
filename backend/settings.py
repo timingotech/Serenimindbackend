@@ -15,6 +15,7 @@ from datetime import timedelta
 import os
 from django.conf import global_settings
 import dj_database_url
+import boto3
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -206,3 +207,8 @@ SIMPLE_JWT = {
      'ROTATE_REFRESH_TOKENS': True,
      'BLACKLIST_AFTER_ROTATION': True
 }
+
+
+AWS_ACCESS_KEY_ID = 'AKIAXTORPLPAIYQACTWZ'
+AWS_SECRET_ACCESS_KEY = 'gXrMyfY/FsDFXFJO6BVbWbn25KEwhFicS9s19g9M'
+AWS_REGION = 'us-east-1'  # e.g., 'us-east-1'

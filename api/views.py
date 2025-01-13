@@ -123,7 +123,11 @@ from datetime import datetime
 import json
 from .models import BotSettings
 from .serializers import BotSettingsSerializer
-
+import boto3
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.core.files.storage import FileSystemStorage
+import os
 
 
 # Download required NLTK data
@@ -3187,3 +3191,49 @@ class BotSettingsView(APIView):
             {"message": "Failed to update bot name.", "errors": serializer.errors},
             status=status.HTTP_400_BAD_REQUEST,
         )
+        
+# AWS Rekognition Client
+rekognition_client = boto3.client(
+    'rekognition',
+    aws_access_key_id='AKIAXTORPLPAIYQACTWZ',
+    aws_secret_access_key='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',
+    region_name='us-east-1'
+)
+
+@csrf_exempt
+def detect_mood(request):
+    if request.method == 'POST' and request.FILES.get('image'):
+        # Save the uploaded image
+        image = request.FILES['image']
+        fs = FileSystemStorage()
+        filename = fs.save(image.name, image)
+        file_path = fs.path(filename)
+
+        try:
+            # Read the image bytes
+            with open(file_path, 'rb') as image_file:
+                image_bytes = image_file.read()
+
+            # Call Rekognition
+            response = rekognition_client.detect_faces(
+                Image={'Bytes': image_bytes},
+                Attributes=['ALL']  # Include emotions in the response
+            )
+
+            # Parse emotions
+            emotions = response['FaceDetails'][0]['Emotions']
+            dominant_emotion = max(emotions, key=lambda e: e['Confidence'])
+            mood = dominant_emotion['Type']
+
+            # Clean up the file
+            os.remove(file_path)
+
+            return JsonResponse({
+                'mood': mood,
+                'message': f'You appear to be {mood.lower()}!',
+                'details': emotions  # Optional: Send all emotions
+            })
+
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Invalid request'}, status=400)
