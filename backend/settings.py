@@ -150,7 +150,7 @@ EMAIL_HOST = 'us2.smtp.mailhostbox.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'team@serenimind.com.ng'
-EMAIL_HOST_PASSWORD = 'Ei)IyIlYw8'
+EMAIL_HOST_PASSWORD = '+k_yFj+Yug72'
 DEFAULT_FROM_EMAIL = 'team@serenimind.com.ng'
 
 # Optional: Increase timeout if the server response is slow
