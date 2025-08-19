@@ -4492,30 +4492,28 @@ def detect_mood(request):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
-@api_view(['POST'])
+@api_view(["POST"])
 def contact_view(request):
+    data = request.data
     try:
-        name = request.data.get("name")
-        email = request.data.get("email")
-        message = request.data.get("message")
+        subject = "Timingotech - New Contact Form Submission"
+        message = f"""
+You have a new contact form submission:
 
-        subject = f"Timingotech Contact Form - Message from {name}"
-        body = f"""
-        New message from {name} ({email}):
-
-        {message}
-        """
-
-        email_message = EmailMessage(
-            subject=subject,
-            body=body,
-            from_email="team@serenimind.com.ng",  # must match SMTP user
-            to=["timingotech@gmail.com"],         # recipient
-            reply_to=[email] if email else None,  # so you can reply directly
+Name: {data.get('name', '')}
+Email: {data.get('email', '')}
+Phone: {data.get('phone', '')}
+Company: {data.get('company', '')}
+Service Interest: {data.get('service_interest', '')}
+Message: {data.get('message', '')}
+"""
+        send_mail(
+            subject,
+            message,
+            "team@serenimind.com.ng",  # Must match EMAIL_HOST_USER in settings
+            ["timingotech@gmail.com"],
+            fail_silently=False,
         )
-
-        email_message.send(fail_silently=False)
-        return Response({"success": "Message sent successfully."}, status=200)
-
+        return Response({"success": "Message sent successfully"}, status=status.HTTP_200_OK)
     except Exception as e:
-        return Response({"error": str(e)}, status=500)
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
