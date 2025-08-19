@@ -132,6 +132,7 @@ from .models import UserConversation
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from rest_framework.permissions import IsAuthenticated
 from .serializers import ContactSerializer
+from django.core.mail import EmailMessage
 
 # Download required NLTK data
 NLTK_DATA_PATH = '/opt/render/punkt'
@@ -4491,31 +4492,30 @@ def detect_mood(request):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid request'}, status=400)
 
-@api_view(["POST"])
-@permission_classes([permissions.AllowAny])  # public form
+@api_view(['POST'])
 def contact_view(request):
-    serializer = ContactSerializer(data=request.data)
-    if serializer.is_valid():
-        data = serializer.validated_data
-        subject = f"Timingotech Contact Form - Message from {data['name']}"
+    try:
+        name = request.data.get("name")
+        email = request.data.get("email")
+        message = request.data.get("message")
+
+        subject = f"Timingotech Contact Form - Message from {name}"
         body = f"""
-You have a new contact form submission:
+        New message from {name} ({email}):
 
-Name: {data['name']}
-Email: {data['email']}
-Phone: {data.get('phone', '')}
-Company: {data.get('company', '')}
-Service Interest: {data.get('service_interest', '')}
-
-Message:
-{data['message']}
+        {message}
         """
-        send_mail(
-            subject,
-            body,
-            data["email"],  # reply-to is sender’s email
-            ["timingotech@gmail.com"],  # recipient
-            fail_silently=False,
+
+        email_message = EmailMessage(
+            subject=subject,
+            body=body,
+            from_email="team@serenimind.com.ng",  # must match SMTP user
+            to=["timingotech@gmail.com"],         # recipient
+            reply_to=[email] if email else None,  # so you can reply directly
         )
-        return Response({"success": "Message sent successfully"}, status=status.HTTP_200_OK)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        email_message.send(fail_silently=False)
+        return Response({"success": "Message sent successfully."}, status=200)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=500)
