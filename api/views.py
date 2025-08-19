@@ -131,6 +131,7 @@ import os
 from .models import UserConversation
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
 from rest_framework.permissions import IsAuthenticated
+from .serializers import ContactSerializer
 
 # Download required NLTK data
 NLTK_DATA_PATH = '/opt/render/punkt'
@@ -4489,3 +4490,32 @@ def detect_mood(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Invalid request'}, status=400)
+
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])  # public form
+def contact_view(request):
+    serializer = ContactSerializer(data=request.data)
+    if serializer.is_valid():
+        data = serializer.validated_data
+        subject = f"Timingotech Contact Form - Message from {data['name']}"
+        body = f"""
+You have a new contact form submission:
+
+Name: {data['name']}
+Email: {data['email']}
+Phone: {data.get('phone', '')}
+Company: {data.get('company', '')}
+Service Interest: {data.get('service_interest', '')}
+
+Message:
+{data['message']}
+        """
+        send_mail(
+            subject,
+            body,
+            data["email"],  # reply-to is sender’s email
+            ["timingotech@gmail.com"],  # recipient
+            fail_silently=False,
+        )
+        return Response({"success": "Message sent successfully"}, status=status.HTTP_200_OK)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

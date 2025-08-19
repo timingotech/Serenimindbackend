@@ -12,6 +12,7 @@ from rest_framework_simplejwt import views as jwt_views
 from rest_framework.routers import DefaultRouter
 from .views import TodoViewSet, MoodEntryViewSet
 from .views import BotSettingsView, detect_mood
+from .views import contact_view
 
 router = DefaultRouter()
 router.register(r'todos', TodoViewSet)
@@ -64,6 +65,8 @@ urlpatterns = [
     path('chat/', ChatbotView.as_view(), name='chat'),
     path('bot-settings/', BotSettingsView.as_view(), name='bot-settings'),
     path('detect-mood/', detect_mood, name='detect_mood'),
+    path("contact/", contact_view, name="contact"),
+
 ]
 
 

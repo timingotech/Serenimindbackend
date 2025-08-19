@@ -112,3 +112,11 @@ class MoodAssessmentSerializer(serializers.ModelSerializer):
         model = MoodAssessment
         fields = '__all__'
         read_only_fields = ('user', 'timestamp')
+        
+class ContactSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+    email = serializers.EmailField()
+    phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
+    company = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    service_interest = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    message = serializers.CharField()
