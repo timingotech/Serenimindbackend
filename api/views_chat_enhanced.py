@@ -55,6 +55,26 @@ def derive_thread_title(user_message, bot_response):
     return 'New Chat'
 
 
+def update_thread_metadata(thread, user_message, bot_response):
+    """Refresh thread title and timestamps based on the latest exchange."""
+    if not thread:
+        return
+
+    new_title = derive_thread_title(user_message, bot_response)
+    fields_to_update = set()
+
+    if new_title and new_title != thread.title:
+        thread.title = new_title
+        fields_to_update.add('title')
+
+    if thread.expires_at and thread.expires_at < timezone.now():
+        thread.expires_at = None
+        fields_to_update.add('expires_at')
+
+    fields_to_update.add('updated_at')
+    thread.save(update_fields=list(fields_to_update))
+
+
 class EnhancedChatView(APIView):
     """
     Enhanced chatbot endpoint with context awareness and history
@@ -120,7 +140,7 @@ class EnhancedChatView(APIView):
                 thread=thread
             )
 
-            self._update_thread_metadata(thread, user_message, bot_response)
+            update_thread_metadata(thread, user_message, bot_response)
 
             return Response({
                 "response": bot_response,
@@ -136,25 +156,6 @@ class EnhancedChatView(APIView):
                 {"error": f"An error occurred: {str(e)}"}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-    def _update_thread_metadata(self, thread, user_message, bot_response):
-        """Refresh thread title and timestamps based on the latest exchange."""
-        if not thread:
-            return
-
-        new_title = derive_thread_title(user_message, bot_response)
-        fields_to_update = set()
-
-        if new_title and new_title != thread.title:
-            thread.title = new_title
-            fields_to_update.add('title')
-
-        if thread.expires_at and thread.expires_at < timezone.now():
-            thread.expires_at = None
-            fields_to_update.add('expires_at')
-
-        fields_to_update.add('updated_at')
-        thread.save(update_fields=list(fields_to_update))
 
     def _get_conversation_context(self, user, thread=None, limit=10):
         """
@@ -578,7 +579,7 @@ class ConversationLogView(APIView):
             thread=thread
         )
 
-        self._update_thread_metadata(thread, user_message, bot_response)
+        update_thread_metadata(thread, user_message, bot_response)
 
         return Response(
             {
