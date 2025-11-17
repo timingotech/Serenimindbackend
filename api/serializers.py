@@ -13,6 +13,22 @@ from rest_framework import serializers
 from .models import MoodAssessment
 from rest_framework import serializers
 from .models import BotSettings
+from .models import ChatHistory, UserConversation
+
+class ChatHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChatHistory
+        fields = ['id', 'session_id', 'message', 'intent', 'response', 'timestamp']
+        read_only_fields = ['timestamp']
+
+class UserConversationSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    first_name = serializers.CharField(source='user.first_name', read_only=True)
+    
+    class Meta:
+        model = UserConversation
+        fields = ['id', 'user', 'username', 'first_name', 'user_message', 'bot_response', 'timestamp']
+        read_only_fields = ['user', 'timestamp']
 
 class BotSettingsSerializer(serializers.ModelSerializer):
     class Meta:

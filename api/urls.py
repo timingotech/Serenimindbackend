@@ -13,6 +13,12 @@ from rest_framework.routers import DefaultRouter
 from .views import TodoViewSet, MoodEntryViewSet
 from .views import BotSettingsView, detect_mood
 from .views import contact_view
+from .views_chat_enhanced import (
+    EnhancedChatView,
+    ConversationHistoryView,
+    ConversationAnalyticsView,
+    DeleteConversationView
+)
 
 router = DefaultRouter()
 router.register(r'todos', TodoViewSet)
@@ -63,6 +69,14 @@ urlpatterns = [
     path('mood-assessment/', MoodAssessmentView.as_view(), name='mood_assessment'),
     path('report-message/<int:message_id>/', views.report_message, name='report_message'),
     path('chat/', ChatbotView.as_view(), name='chat'),
+    
+    # Enhanced chat endpoints with history and context
+    path('chat/enhanced/', EnhancedChatView.as_view(), name='chat-enhanced'),
+    path('chat/history/', ConversationHistoryView.as_view(), name='chat-history'),
+    path('chat/analytics/', ConversationAnalyticsView.as_view(), name='chat-analytics'),
+    path('chat/history/delete/', DeleteConversationView.as_view(), name='chat-delete-all'),
+    path('chat/history/<int:conversation_id>/delete/', DeleteConversationView.as_view(), name='chat-delete-one'),
+    
     path('bot-settings/', BotSettingsView.as_view(), name='bot-settings'),
     path('detect-mood/', detect_mood, name='detect_mood'),
     path("contact/", contact_view, name="contact"),
