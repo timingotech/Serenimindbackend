@@ -141,6 +141,13 @@ class BotSettings(models.Model):
         unique_together = ['user']
 
 class UserConversation(models.Model):
+    thread = models.ForeignKey(
+        'ChatThread',
+        on_delete=models.CASCADE,
+        related_name='messages',
+        null=True,
+        blank=True
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="conversations", null=True)  # Make it nullable temporarily
     user_message = models.TextField()
     bot_response = models.TextField()
@@ -148,3 +155,25 @@ class UserConversation(models.Model):
 
     def __str__(self):
         return f"Conversation with {self.user.username if self.user else 'Unknown'} at {self.timestamp}"
+
+
+class ChatThread(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='chat_threads',
+        null=True,
+        blank=True
+    )
+    title = models.CharField(max_length=120, default='New Chat')
+    archived = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        user_label = self.user.username if self.user else 'Anonymous'
+        return f"{self.title} ({user_label})"
