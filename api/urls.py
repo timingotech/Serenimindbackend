@@ -17,7 +17,8 @@ from .views_chat_enhanced import (
     EnhancedChatView,
     ConversationHistoryView,
     ConversationAnalyticsView,
-    DeleteConversationView
+    DeleteConversationView,
+    ConversationLogView
 )
 
 router = DefaultRouter()
@@ -76,6 +77,7 @@ urlpatterns = [
     path('chat/analytics/', ConversationAnalyticsView.as_view(), name='chat-analytics'),
     path('chat/history/delete/', DeleteConversationView.as_view(), name='chat-delete-all'),
     path('chat/history/<int:conversation_id>/delete/', DeleteConversationView.as_view(), name='chat-delete-one'),
+    path('chat/history/log/', ConversationLogView.as_view(), name='chat-log'),
     
     path('bot-settings/', BotSettingsView.as_view(), name='bot-settings'),
     path('detect-mood/', detect_mood, name='detect_mood'),

@@ -372,7 +372,12 @@ class ConversationAnalyticsView(APIView):
         last_conversation = conversations.latest('timestamp')
         
         # Simple topic extraction (you can enhance this with NLP)
-        all_messages = ' '.join([c.user_message.lower() for c in conversations[:50]])
+        recent_messages = []
+        for conv in conversations[:50]:
+            if conv.user_message:
+                recent_messages.append(conv.user_message.lower())
+
+        all_messages = ' '.join(recent_messages)
         
         topic_keywords = {
             'anxiety': ['anxious', 'worry', 'panic', 'nervous'],
@@ -428,3 +433,32 @@ class DeleteConversationView(APIView):
             return Response({
                 'message': f'{count} conversations deleted successfully'
             }, status=status.HTTP_200_OK)
+
+
+class ConversationLogView(APIView):
+    """Create conversation entries for externally generated responses."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user_message = request.data.get('user_message', '').strip()
+        bot_response = request.data.get('bot_response', '').strip()
+
+        if not user_message or not bot_response:
+            return Response(
+                {"error": "user_message and bot_response are required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        conversation = UserConversation.objects.create(
+            user=request.user,
+            user_message=user_message,
+            bot_response=bot_response
+        )
+
+        return Response(
+            {
+                "conversation_id": conversation.id,
+                "timestamp": conversation.timestamp
+            },
+            status=status.HTTP_201_CREATED
+        )

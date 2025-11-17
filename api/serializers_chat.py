@@ -9,12 +9,18 @@ class ChatHistorySerializer(serializers.ModelSerializer):
         read_only_fields = ['timestamp']
 
 class UserConversationSerializer(serializers.ModelSerializer):
-    username = serializers.CharField(source='user.username', read_only=True)
+    username = serializers.SerializerMethodField()
     
     class Meta:
         model = UserConversation
         fields = ['id', 'user', 'username', 'user_message', 'bot_response', 'timestamp']
         read_only_fields = ['user', 'timestamp']
+
+    def get_username(self, obj):
+        user = getattr(obj, 'user', None)
+        if user and hasattr(user, 'username'):
+            return user.username
+        return None
 
 class BotSettingsSerializer(serializers.ModelSerializer):
     class Meta:
