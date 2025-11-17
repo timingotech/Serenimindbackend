@@ -16,6 +16,7 @@ import os
 from django.conf import global_settings
 import dj_database_url
 import boto3
+import ssl
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -155,16 +156,21 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Email Configuration
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'us2.smtp.mailhostbox.com'
+EMAIL_HOST = 'smtp.go54mail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'team@serenimind.com.ng'
-EMAIL_HOST_PASSWORD = '+k_yFj+Yug72'
+EMAIL_HOST_PASSWORD = 'Timilehin1.2'
 DEFAULT_FROM_EMAIL = 'team@serenimind.com.ng'
-
-# Optional: Increase timeout if the server response is slow
 EMAIL_TIMEOUT = 30
+
+# SSL Context for email (bypass certificate verification if needed)
+import ssl
+EMAIL_SSL_CERTFILE = None
+EMAIL_SSL_KEYFILE = None
 
 
 
@@ -172,6 +178,12 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
+    "http://localhost:8081",
+    "http://127.0.0.1:8081",
+    "http://localhost:19006",
+    "http://127.0.0.1:19006",
+    "http://localhost:19000",
+    "http://127.0.0.1:19000",
     "https://web-production-f89a.up.railway.app",
     "https://serenimindbackend-yeh9.vercel.app",
 ]
@@ -191,6 +203,12 @@ CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
+    'http://localhost:8081',
+    'http://127.0.0.1:8081',
+    'http://localhost:19006',
+    'http://127.0.0.1:19006',
+    'http://localhost:19000',
+    'http://127.0.0.1:19000',
     'https://web-production-f89a.up.railway.app',
     "https://serenimindbackend-yeh9.vercel.app",
 ]
