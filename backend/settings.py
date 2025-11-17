@@ -99,7 +99,7 @@ DATABASES = {
     }
 }
 
-DATABASES ["default"] = dj_database_url.parse("postgresql://testdb_zsxo_user:4Uk7Nc5I6NcFmYFlLlYcm1RKACx5tYy9@dpg-co1j8pn79t8c73celqfg-a.oregon-postgres.render.com/testdb_zsxo")
+DATABASES ["default"] = dj_database_url.parse("postgresql://postgres:gddxmsQiAOloiStzeuvesETZlXLXYMhV@centerbeam.proxy.rlwy.net:39028/railway")
 
 
 
@@ -162,9 +162,8 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://serenimindbackend.onrender.com",
+    "https://web-production-f89a.up.railway.app",
     "https://serenimindbackend-yeh9.vercel.app",
-    "https://serenimindbackend.onrender.com",
 ]
 CORS_ALLOW_METHODS = [
     'GET',
@@ -182,9 +181,8 @@ CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost:3000',
-    'http://serenimindbackend.onrender.com',
+    'https://web-production-f89a.up.railway.app',
     "https://serenimindbackend-yeh9.vercel.app",
-    "https://serenimindbackend.onrender.com",  # Add a comma here
 ]
 
 CSRF_COOKIE_SECURE = True  # For secure connections (HTTPS)
