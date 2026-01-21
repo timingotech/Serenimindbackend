@@ -177,3 +177,53 @@ class ChatThread(models.Model):
     def __str__(self):
         user_label = self.user.username if self.user else 'Anonymous'
         return f"{self.title} ({user_label})"
+
+
+class ActivityMovie(models.Model):
+    """Movie recommendation for the Activity Lounge."""
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    image_url = models.URLField(blank=True)
+    external_url = models.URLField(blank=True)
+    moods = models.CharField(max_length=255, help_text="Comma-separated mood tags")
+
+    def __str__(self):
+        return self.title
+
+
+class ActivityGame(models.Model):
+    """Game recommendation for the Activity Lounge."""
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    image_url = models.URLField(blank=True)
+    play_url = models.URLField(blank=True)
+    moods = models.CharField(max_length=255, help_text="Comma-separated mood or category tags")
+
+    def __str__(self):
+        return self.title
+
+
+class ActivityExercise(models.Model):
+    """Exercise suggestion mapped to moods for the Activity Lounge."""
+    name = models.CharField(max_length=255)
+    exercise_type = models.CharField(max_length=100, blank=True)
+    reason = models.TextField(blank=True)
+    gif_url = models.URLField(blank=True)
+    moods = models.CharField(max_length=255, help_text="Comma-separated mood tags")
+
+    def __str__(self):
+        return self.name
+
+
+class ActivitySound(models.Model):
+    """Sound / audio item for the Activity Lounge."""
+    name = models.CharField(max_length=255)
+    category = models.CharField(max_length=100, blank=True)
+    duration = models.CharField(max_length=20, blank=True)
+    audio_url = models.URLField(blank=True)
+    image_url = models.URLField(blank=True)
+    moods = models.CharField(max_length=255, help_text="Comma-separated mood tags")
+
+    def __str__(self):
+        return self.name
+

@@ -129,9 +129,11 @@ from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import FileSystemStorage
 import os
 from .models import UserConversation
+from .models import ActivityMovie, ActivityGame, ActivityExercise, ActivitySound
 from rest_framework.authentication import SessionAuthentication, BasicAuthentication
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .serializers import ContactSerializer
+from .serializers import ActivityMovieSerializer, ActivityGameSerializer, ActivityExerciseSerializer, ActivitySoundSerializer
 from django.core.mail import EmailMessage
 
 # Download required NLTK data
@@ -4517,3 +4519,59 @@ Message: {data.get('message', '')}
         return Response({"success": "Message sent successfully"}, status=status.HTTP_200_OK)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ActivityMovieListView(generics.ListAPIView):
+    """Read-only list of Activity Lounge movies. Public access."""
+    queryset = ActivityMovie.objects.all().order_by('id')
+    serializer_class = ActivityMovieSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        mood = self.request.query_params.get('mood')
+        if mood:
+            queryset = queryset.filter(moods__icontains=mood)
+        return queryset
+
+
+class ActivityGameListView(generics.ListAPIView):
+    """Read-only list of Activity Lounge games. Public access."""
+    queryset = ActivityGame.objects.all().order_by('id')
+    serializer_class = ActivityGameSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        mood = self.request.query_params.get('mood')
+        if mood:
+            queryset = queryset.filter(moods__icontains=mood)
+        return queryset
+
+
+class ActivityExerciseListView(generics.ListAPIView):
+    """Read-only list of Activity Lounge exercises. Public access."""
+    queryset = ActivityExercise.objects.all().order_by('id')
+    serializer_class = ActivityExerciseSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        mood = self.request.query_params.get('mood')
+        if mood:
+            queryset = queryset.filter(moods__icontains(mood))
+        return queryset
+
+
+class ActivitySoundListView(generics.ListAPIView):
+    """Read-only list of Activity Lounge sounds. Public access."""
+    queryset = ActivitySound.objects.all().order_by('id')
+    serializer_class = ActivitySoundSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        mood = self.request.query_params.get('mood')
+        if mood:
+            queryset = queryset.filter(moods__icontains=mood)
+        return queryset

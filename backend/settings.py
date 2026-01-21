@@ -213,23 +213,9 @@ CSRF_TRUSTED_ORIGINS = [
     "https://serenimindbackend-yeh9.vercel.app",
 ]
 
-# CSRF cookie settings
-# In production we want secure, HttpOnly cookies. For local development
-# (DEBUG=True) allow non-secure cookies and allow JS access so the
-# frontend (running on HTTP via Metro) can read the CSRF cookie and set
-# the `X-CSRFToken` header. Keep secure defaults when DEBUG is False.
-if DEBUG:
-    CSRF_COOKIE_SECURE = False
-    CSRF_COOKIE_HTTPONLY = False
-    CSRF_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SECURE = False
-    SESSION_COOKIE_SAMESITE = 'Lax'
-else:
-    CSRF_COOKIE_SECURE = True  # Only send CSRF cookie over HTTPS in prod
-    CSRF_COOKIE_HTTPONLY = True  # Restrict cookie access to JavaScript in prod
-    CSRF_COOKIE_SAMESITE = 'Lax'
-    SESSION_COOKIE_SECURE = True
-    SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SECURE = True  # For secure connections (HTTPS)
+CSRF_COOKIE_HTTPONLY = True  # Restrict cookie access to JavaScript
+CSRF_COOKIE_SAMESITE = 'Lax'  # Adjust as needed (Lax, Strict, None)
 
 CSRF_FAILURE_VIEW = 'api.views.custom_csrf_failure_view'
 

@@ -13,6 +13,7 @@ from rest_framework.routers import DefaultRouter
 from .views import TodoViewSet, MoodEntryViewSet
 from .views import BotSettingsView, detect_mood
 from .views import contact_view
+from .views import ActivityMovieListView, ActivityGameListView, ActivityExerciseListView, ActivitySoundListView
 from .views_chat_enhanced import (
     EnhancedChatView,
     ConversationHistoryView,
@@ -88,6 +89,12 @@ urlpatterns = [
     path('bot-settings/', BotSettingsView.as_view(), name='bot-settings'),
     path('detect-mood/', detect_mood, name='detect_mood'),
     path("contact/", contact_view, name="contact"),
+
+    # Activity Lounge content (read-only, public)
+    path('activity/movies/', ActivityMovieListView.as_view(), name='activity-movies'),
+    path('activity/games/', ActivityGameListView.as_view(), name='activity-games'),
+    path('activity/exercises/', ActivityExerciseListView.as_view(), name='activity-exercises'),
+    path('activity/sounds/', ActivitySoundListView.as_view(), name='activity-sounds'),
 
 ]
 
