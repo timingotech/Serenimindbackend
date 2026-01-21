@@ -14,9 +14,10 @@ from .models import MoodAssessment
 from rest_framework import serializers
 from .models import BotSettings
 from .models import ChatHistory, UserConversation
+from .models import ActivityMovie, ActivityGame, ActivityExercise, ActivitySound
+
 
 class ChatHistorySerializer(serializers.ModelSerializer):
-from .models import ActivityMovie, ActivityGame, ActivityExercise, ActivitySound
     class Meta:
         model = ChatHistory
         fields = ['id', 'session_id', 'message', 'intent', 'response', 'timestamp']
@@ -129,31 +130,36 @@ class MoodAssessmentSerializer(serializers.ModelSerializer):
         model = MoodAssessment
         fields = '__all__'
         read_only_fields = ('user', 'timestamp')
-        
+
+
 class ContactSerializer(serializers.Serializer):
     name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
     phone = serializers.CharField(max_length=50, required=False, allow_blank=True)
     company = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    service_interest = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    message = serializers.CharField()
+
 
 class ActivityMovieSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActivityMovie
         fields = ['id', 'title', 'description', 'image_url', 'external_url', 'moods']
 
+
 class ActivityGameSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActivityGame
         fields = ['id', 'title', 'description', 'image_url', 'play_url', 'moods']
+
 
 class ActivityExerciseSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActivityExercise
         fields = ['id', 'name', 'exercise_type', 'reason', 'gif_url', 'moods']
 
+
 class ActivitySoundSerializer(serializers.ModelSerializer):
     class Meta:
         model = ActivitySound
         fields = ['id', 'name', 'category', 'duration', 'audio_url', 'image_url', 'moods']
-    service_interest = serializers.CharField(max_length=255, required=False, allow_blank=True)
-    message = serializers.CharField()
