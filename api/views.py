@@ -134,6 +134,7 @@ from rest_framework.authentication import SessionAuthentication, BasicAuthentica
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from .serializers import ContactSerializer
 from .serializers import ActivityMovieSerializer, ActivityGameSerializer, ActivityExerciseSerializer, ActivitySoundSerializer
+from .serializers import BlogPostSerializer
 from django.core.mail import EmailMessage
 
 # Download required NLTK data
@@ -3992,6 +3993,26 @@ def create_blog(request):
         return JsonResponse({'message': 'Blog post submitted successfully.'})
     else:
         return JsonResponse({'error': 'Only POST requests are allowed for this endpoint.'}, status=405)
+
+
+@api_view(['GET'])
+def blogpost_list(request):
+    """Public list of blog posts ordered by newest first."""
+    posts = BlogPost.objects.all().order_by('-created_at')
+    serializer = BlogPostSerializer(posts, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+def blogpost_detail(request, pk):
+    """Retrieve a single blog post by id."""
+    try:
+        post = BlogPost.objects.get(pk=pk)
+    except BlogPost.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    serializer = BlogPostSerializer(post, context={'request': request})
+    return Response(serializer.data)
     
 @api_view(['GET', 'POST'])
 def journal_entries(request):

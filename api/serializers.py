@@ -15,6 +15,7 @@ from rest_framework import serializers
 from .models import BotSettings
 from .models import ChatHistory, UserConversation
 from .models import ActivityMovie, ActivityGame, ActivityExercise, ActivitySound
+from .models import BlogPost
 
 
 class ChatHistorySerializer(serializers.ModelSerializer):
@@ -82,6 +83,12 @@ class PostSerializer(serializers.ModelSerializer):
     class Meta:
         model = Post
         fields = ['id', 'user', 'message', 'timestamp']
+
+
+class BlogPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BlogPost
+        fields = ['id', 'title', 'content', 'image', 'fullname', 'email', 'created_at']
 
 class JournalEntrySerializer(serializers.ModelSerializer):
     # Example read-only field

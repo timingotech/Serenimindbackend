@@ -46,6 +46,8 @@ urlpatterns = [
     path('logout/', views.LogoutView.as_view(), name ='logout'), 
     path('user/', get_user_data, name='user_data'),
     path('create-blog/', views.create_blog, name='create_blog'),
+    path('blog-posts/', views.blogpost_list, name='blogpost_list'),
+    path('blog-posts/<int:pk>/', views.blogpost_detail, name='blogpost_detail'),
     path('journal-entries/', views.journal_entries),
     path('journal-entries/<int:pk>/', views.journal_entry_detail),
     path('community/<int:community_id>/messages/', MessageListCreate.as_view(), name='message-list-create'),
