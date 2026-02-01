@@ -163,7 +163,7 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 EMAIL_HOST_USER = 'team@serenimind.com.ng'
-EMAIL_HOST_PASSWORD = 'Timilehin1.2'
+EMAIL_HOST_PASSWORD = 'SereniMind@1.3Team12.#$123'
 DEFAULT_FROM_EMAIL = 'team@serenimind.com.ng'
 EMAIL_TIMEOUT = 30
 

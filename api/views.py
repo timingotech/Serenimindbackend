@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login
 from django.core.mail import send_mail 
 from django.http import HttpResponseForbidden 
+import logging
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.contrib.auth.models import User 
@@ -118,6 +119,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from sklearn.linear_model import LogisticRegression
+
+logger = logging.getLogger(__name__)
 from django.db import models
 from datetime import datetime
 import json
@@ -4293,17 +4296,20 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
     Django's default send_mail function:
     Parameters: (title(email title), message(email body), from(email sender), to(recipient(s)))
     """
-    send_mail(
-        # title:
-        f"Password Reset for {username}",
-        # message:
-        email_plaintext_message,
-        # from:
-        "team@serenimind.com.ng",
-        # to:
-        [reset_password_token.user.email],
-        fail_silently=False,
-    )
+    try:
+        send_mail(
+            # title:
+            f"Password Reset for {username}",
+            # message:
+            email_plaintext_message,
+            # from:
+            "team@serenimind.com.ng",
+            # to:
+            [reset_password_token.user.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        logger.error("Failed to send password reset email for user %s: %s", username, e)
 
 
 class DeleteUserAccountView(APIView):
